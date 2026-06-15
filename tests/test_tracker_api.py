@@ -1,15 +1,15 @@
 import pytest
 
+from app.collector import build_collector_client
 from app.config import Settings
 from app.market import build_market_provider
 from app.portfolio import PortfolioService
-from app.sources import build_source
 from app.tracker import OpportunityTracker
 
 
 def _build_tracker(settings: Settings) -> OpportunityTracker:
     return OpportunityTracker(
-        build_source(settings),
+        build_collector_client(settings),
         settings,
         build_market_provider(settings),
         PortfolioService(settings),

@@ -129,10 +129,13 @@ Collector hits XP 2FA step
 
 ## Delivery phases (each independently shippable, no behaviour regressions)
 
-1. **Code split (no creds yet).** Carve the repo into two deployables:
-   `collector` (XP scraper + `fetch_positions`) and `analysis` (everything
-   else). Define the shared read-only data contract; analysis consumes it via
-   an injected client (today: in-process; later: socket/files).
+1. **Code split (no creds yet). [implemented]** Carved the repo into two zones:
+   `app/collector/` (the `Collector` producers — mock + XP scraper — plus
+   `fetch_positions`) and the analysis engine (everything else). The engine
+   depends only on the `CollectorClient` interface, today satisfied by
+   `InProcessCollectorClient` and later by a socket/snapshot-file remote client
+   with no engine change. A test drives the tracker via a fake remote client to
+   lock the seam.
 2. **Sealed secrets.** TPM-sealed **password** store (no seed on the server);
    remove plaintext creds from `.env`; load via the sealed store with `mlock` +
    log scrubbing; sealed session-cookie cache.
@@ -151,8 +154,9 @@ Collector hits XP 2FA step
 7. **Remote access (optional).** VPN + authn in front of B's dashboard only.
 
 ## Mapping to the current codebase
-- **Becomes Collector (A):** `app/sources/xp_scraper.py`, `fetch_positions`, and
-  all `XP_*` settings — the only credential-bearing code today.
+- **Collector (A) [done in Phase 1]:** `app/collector/` —
+  `sources/xp_scraper.py`, `fetch_positions`, and all `XP_*` settings — the only
+  credential-bearing code; reached only via the `CollectorClient` boundary.
 - **Stays Analysis (B):** opportunity + equities + alerts engines, market data
   (`app/market/*`), brapi/research scraping — broad internet, no secrets.
 - **Reused as-is:** the `app/alerts/` layer becomes the security-alert channel;

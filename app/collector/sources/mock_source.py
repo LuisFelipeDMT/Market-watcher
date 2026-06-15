@@ -1,4 +1,4 @@
-"""A realistic mock offer source for development and testing.
+"""A realistic mock collector for development and testing.
 
 It generates a stable universe of primary papers whose rates jitter slightly
 each refresh, plus a set of SECONDARY-market offers (papers other investors are
@@ -12,6 +12,7 @@ from __future__ import annotations
 import random
 from datetime import date, timedelta
 
+from app.collector.base import Collector
 from app.config import Settings
 from app.models import (
     Holding,
@@ -23,7 +24,6 @@ from app.models import (
     ProductType,
 )
 from app.portfolio.conglomerates import conglomerate_of, sector_of
-from app.sources.base import OfferSource
 
 # (issuer, product, index, base_rate, years, min_inv, fgc, tax_exempt, rating)
 _UNIVERSE: list[tuple] = [
@@ -60,7 +60,7 @@ _SECONDARY: list[tuple] = [
 ]
 
 
-class MockOfferSource(OfferSource):
+class MockCollector(Collector):
     """Generates lifelike, slightly fluctuating primary + secondary offers."""
 
     name = "mock"

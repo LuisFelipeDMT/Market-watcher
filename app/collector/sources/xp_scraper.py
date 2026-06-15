@@ -1,6 +1,6 @@
-"""XP web platform scraper.
+"""XP web platform collector (trusted zone).
 
-XP Brazil exposes no public API for its renda fixa shelf, so this source
+XP Brazil exposes no public API for its renda fixa shelf, so this collector
 drives a headless browser (Playwright) to authenticate with the user's own
 investor credentials and read the offers table from the renda fixa page.
 
@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import logging
 
+from app.collector.base import Collector
 from app.config import Settings
 from app.models import Offer, Portfolio
-from app.sources.base import OfferSource
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ RENDA_FIXA_URL = "https://www.xpi.com.br/investimentos/renda-fixa/"
 SECONDARY_URL = "https://www.xpi.com.br/investimentos/renda-fixa/mercado-secundario/"
 
 
-class XPOfferSource(OfferSource):
+class XPCollector(Collector):
     """Scrapes renda fixa offers from the XP web platform via Playwright."""
 
     name = "xp"
@@ -49,7 +49,7 @@ class XPOfferSource(OfferSource):
             from playwright.async_api import async_playwright
         except ImportError as exc:  # pragma: no cover - depends on env
             raise RuntimeError(
-                "Playwright is required for the XP source. Install it with:\n"
+                "Playwright is required for the XP collector. Install it with:\n"
                 "  pip install playwright && playwright install chromium"
             ) from exc
 
@@ -71,8 +71,9 @@ class XPOfferSource(OfferSource):
         """Authenticate against the XP login flow.
 
         Selectors below are placeholders — inspect the live login page with an
-        authenticated session and replace them. Handle the CPF step and any
-        TOTP/2FA prompt using XP_CPF / XP_TOTP_SECRET.
+        authenticated session and replace them. Handle the CPF step and the
+        2FA prompt via the phone-push approval broker (see the secure-delivery
+        plan); the TOTP seed stays on the phone, never on this host.
         """
         assert self._page is not None
         await self._page.goto(LOGIN_URL)
@@ -80,7 +81,7 @@ class XPOfferSource(OfferSource):
         # await self._page.fill("#username", self._settings.xp_username)
         # await self._page.fill("#password", self._settings.xp_password)
         # await self._page.click("button[type=submit]")
-        # ...handle CPF + TOTP steps...
+        # ...handle CPF + phone-push 2FA approval...
         raise NotImplementedError(
             "XP login selectors are not yet wired. Inspect the live page and "
             "complete _login(), or run with OFFER_SOURCE=mock."

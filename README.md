@@ -27,9 +27,11 @@ ones worth buying, with a recommended position size.
                                                 analytics     /opportunities/secondary
 ```
 
-- **Sources** (`app/sources/`) — offers behind one interface
-  (`fetch_offers`, `fetch_positions`): `mock` (primary + secondary + a demo
-  portfolio, no creds) or `xp` (Playwright scraper scaffold).
+- **Collector** (`app/collector/`) — the trusted zone that reads the brokerage.
+  Producers (`app/collector/sources/`): `mock` (primary + secondary + a demo
+  portfolio, no creds) or `xp` (Playwright scraper scaffold). The analysis engine
+  talks to it only through the `CollectorClient` interface (in-process today,
+  isolated remote later — see `docs/secure-delivery-plan.md`).
 - **Market data** (`app/market/`) — `MarketContext` from free public sources
   with per-component fallback to an offline snapshot: **BCB** SGS (CDI/Selic/
   IPCA) + Olinda Focus expectations, **Tesouro Direto** (risk-free curve),
@@ -221,10 +223,11 @@ pip install playwright && playwright install chromium
 # set OFFER_SOURCE=xp and the XP_* credentials in .env
 ```
 
-`app/sources/xp_scraper.py` has the structure in place; complete against the
-live site (selectors require an authenticated session and change over time):
+`app/collector/sources/xp_scraper.py` has the structure in place; complete
+against the live site (selectors require an authenticated session and change
+over time):
 
-- `_login()` — fill the login form, handle the CPF step and TOTP/2FA.
+- `_login()` — fill the login form, handle the CPF step and phone-push 2FA.
 - `fetch_offers()` — parse the primary **and** secondary offers tables.
 - `fetch_positions()` — parse current holdings into a `Portfolio`.
 

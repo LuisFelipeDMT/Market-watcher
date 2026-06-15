@@ -10,12 +10,12 @@ from fastapi import FastAPI
 from app import __version__
 from app.alerts import AlertService
 from app.api import alerts_router, equities_router, router
+from app.collector import build_collector_client
 from app.config import get_settings
 from app.equities import EquityTracker, Watchlist
 from app.equities.sources import build_equity_source
 from app.market import build_market_provider
 from app.portfolio import PortfolioService
-from app.sources import build_source
 from app.tracker import OpportunityTracker
 
 
@@ -28,11 +28,12 @@ async def lifespan(app: FastAPI):
     )
     # Shared alerting service feeds both trackers.
     alert_service = AlertService(settings)
-    source = build_source(settings)
+    # Analysis zone talks to the brokerage only through the collector client.
+    collector_client = build_collector_client(settings)
     market_provider = build_market_provider(settings)
     portfolio_service = PortfolioService(settings)
     tracker = OpportunityTracker(
-        source, settings, market_provider, portfolio_service, alert_service
+        collector_client, settings, market_provider, portfolio_service, alert_service
     )
     # Equities (renda variável) tracker shares the market provider.
     equity_tracker = EquityTracker(

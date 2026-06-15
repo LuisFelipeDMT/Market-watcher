@@ -17,11 +17,11 @@ from pydantic import BaseModel
 
 from app.alerts import AlertService, offer_alert
 from app.analysis import evaluate_offers
+from app.collector.base import CollectorClient
 from app.config import Settings
 from app.market.base import MarketDataProvider
 from app.models import MarketContext, Opportunity, Portfolio
 from app.portfolio.service import PortfolioService
-from app.sources.base import OfferSource
 
 logger = logging.getLogger(__name__)
 
@@ -44,20 +44,20 @@ class OpportunityTracker:
 
     def __init__(
         self,
-        source: OfferSource,
+        collector: CollectorClient,
         settings: Settings,
         market_provider: MarketDataProvider,
         portfolio_service: PortfolioService,
         alerts: Optional[AlertService] = None,
     ) -> None:
-        self._source = source
+        self._collector = collector
         self._settings = settings
         self._market = market_provider
         self._portfolio = portfolio_service
         self._alerts = alerts
         self._context: Optional[MarketContext] = None
         self._last_market_refresh: float = 0.0
-        self._state = TrackerState(source=source.name)
+        self._state = TrackerState(source=collector.name)
         self._task: Optional[asyncio.Task] = None
         self._subscribers: set[asyncio.Queue] = set()
         self._known_opportunity_ids: set[str] = set()
@@ -66,11 +66,11 @@ class OpportunityTracker:
     # --- lifecycle ---------------------------------------------------------
 
     async def start(self) -> None:
-        await self._source.startup()
+        await self._collector.startup()
         await self._refresh_market(force=True)
-        # Load holdings from the source if it provides them.
+        # Load holdings from the collector if it provides them.
         try:
-            positions = await self._source.fetch_positions()
+            positions = await self._collector.get_positions()
             if positions is not None:
                 self._portfolio.set_portfolio(positions)
         except NotImplementedError:
@@ -78,7 +78,7 @@ class OpportunityTracker:
         except Exception as exc:
             logger.warning("Could not load positions: %s", exc)
         self._task = asyncio.create_task(self._run(), name="opportunity-tracker")
-        logger.info("Tracker started (source=%s)", self._source.name)
+        logger.info("Tracker started (collector=%s)", self._collector.name)
 
     async def stop(self) -> None:
         if self._task is not None:
@@ -87,7 +87,7 @@ class OpportunityTracker:
                 await self._task
             except asyncio.CancelledError:
                 pass
-        await self._source.shutdown()
+        await self._collector.shutdown()
         logger.info("Tracker stopped")
 
     # --- state access ------------------------------------------------------
@@ -138,7 +138,7 @@ class OpportunityTracker:
                 await self._refresh_market()
                 if self._context is None:
                     raise RuntimeError("No market context available")
-                offers = await self._source.fetch_offers()
+                offers = await self._collector.get_offers()
                 opportunities = evaluate_offers(
                     offers, self._context, self._portfolio, self._settings
                 )
@@ -152,7 +152,7 @@ class OpportunityTracker:
                 self._state = TrackerState(
                     updated_at=datetime.now(timezone.utc),
                     refresh_count=self._state.refresh_count + 1,
-                    source=self._source.name,
+                    source=self._collector.name,
                     market_source=self._context.source,
                     error=None,
                     opportunities=opportunities,
