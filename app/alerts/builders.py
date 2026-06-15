@@ -36,6 +36,20 @@ def offer_alert(opp: Opportunity) -> Alert:
     )
 
 
+def security_alert(
+    event: str, detail: str, severity: AlertSeverity = AlertSeverity.ACTIONABLE
+) -> Alert:
+    """Alert for a security/ops signal (login failure, new-device prompt, etc.)."""
+    return Alert(
+        id=f"SECURITY:{event}",
+        kind=AlertKind.SECURITY,
+        severity=severity,
+        title=f"Security: {event}",
+        message=detail,
+        symbol=None,
+    )
+
+
 def equity_alert(opp: EquityOpportunity) -> Alert:
     """Alert for an equity that just entered the TRIGGERED (buy-now) state."""
     v = opp.valuation

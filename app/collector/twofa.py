@@ -63,27 +63,36 @@ async def _log_notifier(reason: str, request_id: str) -> None:
 class TwoFactorBroker:
     """Issues approval requests and waits for the phone to relay the code."""
 
-    def __init__(self, settings, notifier: Notifier | None = None) -> None:
+    def __init__(self, settings, notifier: Notifier | None = None, audit=None) -> None:
         self._ttl = settings.twofa_timeout_seconds
         self._notifier = notifier or _log_notifier
         self._pending: dict[str, _Pending] = {}
+        if audit is None:
+            from app.collector.audit import build_audit_log
+
+            audit = build_audit_log(settings)
+        self._audit = audit
 
     async def request_code(self, reason: str) -> str:
         """Push an approval prompt and block until the code arrives or expires."""
         request_id = _secrets.token_urlsafe(12)
         pending = _Pending(reason, self._ttl)
         self._pending[request_id] = pending
+        self._audit.record("2fa_requested", request_id=request_id, reason=reason)
         try:
             await self._notifier(reason, request_id)
             try:
                 await asyncio.wait_for(pending.event.wait(), timeout=self._ttl)
             except asyncio.TimeoutError as exc:
+                self._audit.record("2fa_timeout", request_id=request_id)
                 raise TwoFactorTimeout(
                     f"2FA approval timed out after {self._ttl:.0f}s"
                 ) from exc
             if pending.status is _Status.DENIED:
+                self._audit.record("2fa_denied", request_id=request_id)
                 raise TwoFactorDenied("2FA request denied from phone")
             assert pending.code is not None
+            self._audit.record("2fa_approved", request_id=request_id)
             return pending.code
         finally:
             # Single-use: always drop the request when we stop waiting.

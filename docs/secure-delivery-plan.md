@@ -168,10 +168,11 @@ Collector hits XP 2FA step
    units for both zones, an nftables egress allowlist for the collector, a
    two-zone deployment guide, and `scripts/audit.sh` (pip-audit + committed-
    secret scan; hash-pinning documented).
-6. **Observability + runbooks.** Audit log of A's actions (no secrets);
-   **reuse the alerting layer** for security signals (login failures, new-device
-   prompts, egress-allowlist denials); encrypted backups; credential-rotation
-   and incident-response runbooks (kill switch).
+6. **Observability + runbooks. [implemented]** Append-only collector audit log
+   (`app/collector/audit.py`, JSON lines, 0600, no secrets) wired into the 2FA
+   broker; `AlertKind.SECURITY` + `security_alert()` reuse the alerting layer for
+   ops signals; `docs/runbooks.md` (monitoring, credential rotation, incident
+   response/kill switch) and `scripts/backup.sh` (age-encrypted backups).
 7. **Remote access (optional).** VPN + authn in front of B's dashboard only.
 
 ## Mapping to the current codebase
