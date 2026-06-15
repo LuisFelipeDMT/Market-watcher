@@ -6,7 +6,7 @@ import asyncio
 
 from fastapi import APIRouter, Query, Request, WebSocket, WebSocketDisconnect
 
-from app.models import Opportunity
+from app.models import MarketContext, MarketKind, Opportunity, Portfolio
 from app.tracker import OpportunityTracker, TrackerState
 
 router = APIRouter()
@@ -23,6 +23,7 @@ async def health(request: Request) -> dict:
     return {
         "status": "ok",
         "source": state.source,
+        "market_source": state.market_source,
         "refresh_count": state.refresh_count,
         "updated_at": state.updated_at,
         "tracked_offers": len(state.opportunities),
@@ -58,6 +59,47 @@ async def list_opportunities(
 async def highlights(request: Request) -> list[Opportunity]:
     """Shortcut for the currently flagged (highlighted) opportunities."""
     return [o for o in _tracker(request).state.opportunities if o.is_opportunity]
+
+
+@router.get("/opportunities/secondary", response_model=list[Opportunity])
+async def secondary(
+    request: Request,
+    only_highlights: bool = Query(False),
+) -> list[Opportunity]:
+    """Secondary-market offers, ranked — the mid-day resale opportunities."""
+    items = [
+        o
+        for o in _tracker(request).state.opportunities
+        if o.offer.market is MarketKind.SECONDARY
+    ]
+    if only_highlights:
+        items = [o for o in items if o.is_opportunity]
+    return items
+
+
+@router.get("/market", response_model=MarketContext)
+async def market(request: Request) -> MarketContext:
+    """The current reference data (rates, curves, spreads, Focus)."""
+    ctx = _tracker(request).market_context
+    if ctx is None:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=503, detail="Market context not ready")
+    return ctx
+
+
+@router.get("/portfolio", response_model=Portfolio)
+async def get_portfolio(request: Request) -> Portfolio:
+    """Current holdings used for FGC / diversification sizing."""
+    return _tracker(request).portfolio_service.portfolio
+
+
+@router.put("/portfolio", response_model=Portfolio)
+async def put_portfolio(request: Request, portfolio: Portfolio) -> Portfolio:
+    """Manually override the holdings (recomputed on the next refresh)."""
+    tracker = _tracker(request)
+    tracker.set_portfolio(portfolio)
+    return tracker.portfolio_service.portfolio
 
 
 @router.post("/refresh", response_model=TrackerState)

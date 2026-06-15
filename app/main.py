@@ -10,6 +10,8 @@ from fastapi import FastAPI
 from app import __version__
 from app.api import router
 from app.config import get_settings
+from app.market import build_market_provider
+from app.portfolio import PortfolioService
 from app.sources import build_source
 from app.tracker import OpportunityTracker
 
@@ -22,7 +24,11 @@ async def lifespan(app: FastAPI):
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
     source = build_source(settings)
-    tracker = OpportunityTracker(source, settings)
+    market_provider = build_market_provider(settings)
+    portfolio_service = PortfolioService(settings)
+    tracker = OpportunityTracker(
+        source, settings, market_provider, portfolio_service
+    )
     app.state.settings = settings
     app.state.tracker = tracker
     await tracker.start()

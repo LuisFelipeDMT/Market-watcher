@@ -19,13 +19,14 @@ from __future__ import annotations
 import logging
 
 from app.config import Settings
-from app.models import Offer
+from app.models import Offer, Portfolio
 from app.sources.base import OfferSource
 
 logger = logging.getLogger(__name__)
 
 LOGIN_URL = "https://www.xpi.com.br/login"
 RENDA_FIXA_URL = "https://www.xpi.com.br/investimentos/renda-fixa/"
+SECONDARY_URL = "https://www.xpi.com.br/investimentos/renda-fixa/mercado-secundario/"
 
 
 class XPOfferSource(OfferSource):
@@ -86,17 +87,32 @@ class XPOfferSource(OfferSource):
         )
 
     async def fetch_offers(self) -> list[Offer]:
-        """Read and parse the renda fixa offers table.
+        """Read and parse the renda fixa offers (primary + secondary).
 
         Implementation outline:
-          1. Navigate to RENDA_FIXA_URL.
-          2. Wait for the offers table/grid to render.
-          3. Extract each row into the fields of :class:`Offer`
-             (issuer, product type, index type, rate, maturity, min
-             investment, liquidity, FGC eligibility, tax exemption, rating).
-          4. Return the parsed list.
+          1. Navigate to RENDA_FIXA_URL (primary) and SECONDARY_URL.
+          2. Wait for each offers table/grid to render.
+          3. Extract each row into the fields of :class:`Offer`. For secondary
+             rows also capture PU (``unit_price``), the taxa de compra
+             (``offered_ytm``) and ``quantity_available``, and set
+             ``market=MarketKind.SECONDARY``.
+          4. Return the combined list.
         """
         raise NotImplementedError(
             "XP offer parsing is not yet wired. Complete fetch_offers(), or "
             "run with OFFER_SOURCE=mock."
+        )
+
+    async def fetch_positions(self) -> Portfolio | None:
+        """Scrape current holdings from the XP positions/extrato page.
+
+        Implementation outline:
+          1. Navigate to ``settings.xp_positions_url``.
+          2. Parse each renda fixa position into a :class:`Holding`
+             (issuer, product type, current amount, FGC eligibility).
+          3. Map issuer -> conglomerate/sector via app.portfolio.conglomerates.
+          4. Return a :class:`Portfolio`.
+        """
+        raise NotImplementedError(
+            "XP positions parsing is not yet wired. Complete fetch_positions()."
         )

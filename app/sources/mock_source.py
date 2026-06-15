@@ -1,8 +1,10 @@
 """A realistic mock offer source for development and testing.
 
-It generates a stable universe of papers whose rates jitter slightly on each
-refresh, so the tracker has live, changing data to evaluate and highlight.
-The issuer set mirrors the kind of names found on XP's renda fixa shelf.
+It generates a stable universe of primary papers whose rates jitter slightly
+each refresh, plus a set of SECONDARY-market offers (papers other investors are
+reselling) — some deliberately priced cheap vs fair to exercise the
+opportunity engine. It also returns a mock portfolio so FGC/diversification
+sizing is demonstrable offline.
 """
 
 from __future__ import annotations
@@ -11,7 +13,16 @@ import random
 from datetime import date, timedelta
 
 from app.config import Settings
-from app.models import IndexType, Liquidity, Offer, ProductType
+from app.models import (
+    Holding,
+    IndexType,
+    Liquidity,
+    MarketKind,
+    Offer,
+    Portfolio,
+    ProductType,
+)
+from app.portfolio.conglomerates import conglomerate_of, sector_of
 from app.sources.base import OfferSource
 
 # (issuer, product, index, base_rate, years, min_inv, fgc, tax_exempt, rating)
@@ -36,9 +47,21 @@ _UNIVERSE: list[tuple] = [
     ("Banco Sofisa", ProductType.LCA, IndexType.CDI, 94, 2, 1000, True, True, "A"),
 ]
 
+# Secondary offers: (issuer, product, index, offered_ytm, years, min_inv, fgc,
+# tax_exempt, rating, qty). offered_ytm is the taxa de compra (the resale yield)
+# — set deliberately above fair on several to model urgency/deságio.
+_SECONDARY: list[tuple] = [
+    ("Vale S.A.", ProductType.DEBENTURE, IndexType.IPCA, 8.3, 5, 1000, False, True, "AAA", 40),
+    ("Energisa", ProductType.DEBENTURE, IndexType.IPCA, 8.9, 6, 1000, False, True, "AA", 25),
+    ("Rumo Logistica", ProductType.CRA, IndexType.IPCA, 9.4, 5, 1000, False, True, "AA-", 30),
+    ("MRV Engenharia", ProductType.CRI, IndexType.IPCA, 7.5, 4, 1000, False, True, "A", 15),
+    ("Tesouro Nacional", ProductType.TESOURO, IndexType.PRE, 13.6, 5, 30, False, False, "AAA", 200),
+    ("Banco Daycoval", ProductType.CDB, IndexType.PRE, 13.9, 3, 5000, True, False, "AA", 10),
+]
+
 
 class MockOfferSource(OfferSource):
-    """Generates a lifelike, slightly fluctuating set of offers."""
+    """Generates lifelike, slightly fluctuating primary + secondary offers."""
 
     name = "mock"
 
@@ -49,27 +72,15 @@ class MockOfferSource(OfferSource):
     async def fetch_offers(self) -> list[Offer]:
         today = date.today()
         offers: list[Offer] = []
+
         for i, (
-            issuer,
-            product,
-            index,
-            base_rate,
-            years,
-            min_inv,
-            fgc,
-            tax_exempt,
-            rating,
+            issuer, product, index, base_rate, years, min_inv, fgc, tax_exempt, rating
         ) in enumerate(_UNIVERSE):
-            # Jitter the rate a touch each cycle to emulate a live shelf.
             jitter = self._rng.uniform(-0.015, 0.015)
             rate = round(base_rate * (1 + jitter), 4)
-
             liquidity = (
-                Liquidity.DAILY
-                if product in (ProductType.TESOURO,)
-                else Liquidity.AT_MATURITY
+                Liquidity.DAILY if product is ProductType.TESOURO else Liquidity.AT_MATURITY
             )
-
             offers.append(
                 Offer(
                     id=f"mock-{i:03d}",
@@ -83,6 +94,60 @@ class MockOfferSource(OfferSource):
                     fgc_eligible=fgc,
                     tax_exempt=tax_exempt,
                     rating=rating,
+                    market=MarketKind.PRIMARY,
+                )
+            )
+
+        for j, (
+            issuer, product, index, ytm, years, min_inv, fgc, tax_exempt, rating, qty
+        ) in enumerate(_SECONDARY):
+            jitter = self._rng.uniform(-0.03, 0.03)
+            offered = round(ytm + jitter, 4)
+            offers.append(
+                Offer(
+                    id=f"mock-sec-{j:03d}",
+                    issuer=issuer,
+                    product_type=product,
+                    index_type=index,
+                    rate=offered,
+                    offered_ytm=offered,
+                    maturity=today + timedelta(days=int(years * 365)),
+                    min_investment=float(min_inv),
+                    liquidity=Liquidity.AT_MATURITY,
+                    fgc_eligible=fgc,
+                    tax_exempt=tax_exempt,
+                    rating=rating,
+                    market=MarketKind.SECONDARY,
+                    quantity_available=qty,
+                    face_value=1000.0,
                 )
             )
         return offers
+
+    async def fetch_positions(self) -> Portfolio:
+        """A demo portfolio with some FGC usage and a concentrated issuer."""
+        holdings = [
+            Holding(
+                issuer="Banco BTG Pactual",
+                conglomerate=conglomerate_of("Banco BTG Pactual"),
+                product_type=ProductType.CDB,
+                amount=180_000.0,
+                fgc_eligible=True,
+            ),
+            Holding(
+                issuer="Banco Master",
+                conglomerate=conglomerate_of("Banco Master"),
+                product_type=ProductType.CDB,
+                amount=250_000.0,
+                fgc_eligible=True,
+            ),
+            Holding(
+                issuer="Vale S.A.",
+                conglomerate=conglomerate_of("Vale S.A."),
+                product_type=ProductType.DEBENTURE,
+                amount=30_000.0,
+                fgc_eligible=False,
+                sector=sector_of("Vale S.A."),
+            ),
+        ]
+        return Portfolio(holdings=holdings)

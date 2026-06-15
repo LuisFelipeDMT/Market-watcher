@@ -3,7 +3,9 @@ from datetime import date, timedelta
 import pytest
 
 from app.config import Settings
-from app.models import IndexType, Liquidity, Offer, ProductType
+from app.market import fixtures_context
+from app.models import IndexType, Liquidity, MarketContext, Offer, ProductType
+from app.portfolio import PortfolioService
 
 
 @pytest.fixture
@@ -15,6 +17,16 @@ def settings() -> Settings:
         ipca_annual=4.50,
         opportunity_threshold=70.0,
     )
+
+
+@pytest.fixture
+def context(settings) -> MarketContext:
+    return fixtures_context(settings)
+
+
+@pytest.fixture
+def service(settings) -> PortfolioService:
+    return PortfolioService(settings)
 
 
 def make_offer(**overrides) -> Offer:

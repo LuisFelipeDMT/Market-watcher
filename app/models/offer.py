@@ -39,6 +39,23 @@ class Liquidity(str, Enum):
     SCHEDULED = "SCHEDULED"  # carência then liquidity
 
 
+class MarketKind(str, Enum):
+    """Where the offer comes from."""
+
+    PRIMARY = "PRIMARY"  # new issuance on the shelf
+    SECONDARY = "SECONDARY"  # resold by another investor (the user's edge)
+
+
+# Products that are NOT covered by the FGC and therefore carry pure issuer
+# credit risk (handled via diversification rather than the R$250k guarantee).
+NON_FGC_PRODUCTS = {
+    ProductType.CRI,
+    ProductType.CRA,
+    ProductType.DEBENTURE,
+    ProductType.TESOURO,  # sovereign: no FGC, but lowest credit risk
+}
+
+
 class InstitutionHealth(BaseModel):
     """Market-analysis signals about the issuing institution.
 
@@ -63,7 +80,8 @@ class Offer(BaseModel):
     issuer: str
     product_type: ProductType
     index_type: IndexType
-    # Meaning depends on index_type (see IndexType docstring).
+    # Meaning depends on index_type (see IndexType docstring). For PRE this is
+    # the YTM; for CDI it is % of CDI; for IPCA/SELIC it is the spread.
     rate: float
     maturity: date
     min_investment: float
@@ -71,6 +89,18 @@ class Offer(BaseModel):
     fgc_eligible: bool = False  # covered by FGC up to R$250k
     tax_exempt: bool = False  # IR-exempt for individuals (LCI/LCA/CRI/CRA...)
     rating: Optional[str] = None
+
+    # --- secondary-market fields (the mid-day resale edge) -----------------
+    market: MarketKind = MarketKind.PRIMARY
+    unit_price: Optional[float] = None  # PU offered
+    quantity_available: Optional[int] = None  # how many units on offer
+    face_value: Optional[float] = None  # PU at maturity / par (for cheapness)
+    coupon_rate: Optional[float] = None  # annual coupon %, if it pays coupons
+    # The actual buy yield-to-maturity offered for a secondary paper
+    # (taxa de compra). For PRE this is the YTM directly; for IPCA/SELIC it is
+    # the spread. When set it overrides ``rate`` for yield/cheapness math.
+    offered_ytm: Optional[float] = None
+
     collected_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
@@ -85,6 +115,19 @@ class Offer(BaseModel):
     def years_to_maturity(self) -> float:
         return round(self.days_to_maturity / 365.0, 3)
 
+    @property
+    def effective_rate(self) -> float:
+        """The rate to use for yield math: secondary YTM if present."""
+        return self.offered_ytm if self.offered_ytm is not None else self.rate
+
+
+class DurationMetrics(BaseModel):
+    """Interest-rate sensitivity of a paper."""
+
+    macaulay: float  # years
+    modified: float  # %-price change per 1% rate move
+    dv01: float  # price change (per 100 face) for a 1bp rate move
+
 
 class RiskAssessment(BaseModel):
     """Result of scoring the risk of an offer (0 = safest, 100 = riskiest)."""
@@ -96,7 +139,87 @@ class RiskAssessment(BaseModel):
     maturity_factor: float
     liquidity_factor: float
     institution_factor: float
+    duration_factor: float = 0.0
+    macro_factor: float = 0.0
     flags: list[str] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------
+# Market context (external reference data)
+# --------------------------------------------------------------------------
+
+
+class FocusExpectation(BaseModel):
+    """A forward market expectation point from the BCB Focus survey."""
+
+    indicator: str  # e.g. "Selic", "IPCA"
+    reference_year: int
+    median: float
+    std_dev: Optional[float] = None
+
+
+class MarketContext(BaseModel):
+    """External reference data used to evaluate and normalize offers.
+
+    Sourced from BCB (SGS + Focus), Tesouro Direto and ANBIMA. All rates are
+    annual percentages.
+    """
+
+    as_of: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    source: str = "fixtures"
+
+    cdi_annual: float
+    selic_annual: float
+    ipca_annual: float
+
+    # Forward expectations (Focus) keyed for quick access; raw list kept too.
+    focus: list[FocusExpectation] = Field(default_factory=list)
+    # Dispersion of the rate path (proxy for macro uncertainty), 0..1-ish.
+    rate_path_uncertainty: float = 0.0
+
+    # Risk-free zero curve anchor points: {years: annual_rate_%} from Tesouro.
+    risk_free_curve: dict[str, float] = Field(default_factory=dict)
+    # Credit spreads over the risk-free curve by credit tier (bps).
+    credit_spreads_bps: dict[str, float] = Field(default_factory=dict)
+
+
+# --------------------------------------------------------------------------
+# Portfolio (holdings, FGC exposure, diversification)
+# --------------------------------------------------------------------------
+
+
+class Holding(BaseModel):
+    """A current position held by the investor."""
+
+    issuer: str
+    conglomerate: str
+    product_type: ProductType
+    amount: float  # current value in BRL (principal + accrued)
+    fgc_eligible: bool = False
+    sector: Optional[str] = None
+
+
+class Portfolio(BaseModel):
+    """The investor's current holdings."""
+
+    holdings: list[Holding] = Field(default_factory=list)
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def total_value(self) -> float:
+        return round(sum(h.amount for h in self.holdings), 2)
+
+
+class PositionSizing(BaseModel):
+    """Recommended sizing for a candidate buy, respecting FGC + diversification."""
+
+    fgc_room: Optional[float] = None  # BRL still coverable in the conglomerate
+    max_recommended: float  # BRL it is prudent to allocate to this offer
+    concentration_pct: float  # resulting issuer concentration (% of portfolio)
+    notes: list[str] = Field(default_factory=list)
 
 
 class Opportunity(BaseModel):
@@ -109,12 +232,24 @@ class Opportunity(BaseModel):
     # Yield normalized to a comparable gross annual % so different index
     # types can be ranked on the same scale.
     normalized_gross_yield: float
-    # Net (after-IR) normalized annual %, accounting for tax exemption.
+    # Net (after-IR / IOF) normalized annual %, accounting for tax exemption.
     normalized_net_yield: float
+    # Net yield-to-maturity for a buy-and-hold investor.
+    net_ytm: float
     # Yield expressed as % of CDI for quick comparison.
     yield_pct_of_cdi: float
+
+    # Secondary-market edge: offered YTM minus fair reference YTM, in bps.
+    cheapness_bps: float = 0.0
+    duration: Optional[DurationMetrics] = None
+    macro_penalty: float = 0.0
+
+    # FGC coverage given the *current* portfolio (room may already be used).
+    fgc_covered_now: bool = False
+    sizing: Optional[PositionSizing] = None
 
     # 0..100, higher = better risk-adjusted opportunity.
     opportunity_score: float
     is_opportunity: bool
     reasons: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)

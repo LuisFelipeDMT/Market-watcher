@@ -17,7 +17,9 @@ from pydantic import BaseModel
 
 from app.analysis import evaluate_offers
 from app.config import Settings
-from app.models import Opportunity
+from app.market.base import MarketDataProvider
+from app.models import MarketContext, Opportunity, Portfolio
+from app.portfolio.service import PortfolioService
 from app.sources.base import OfferSource
 
 logger = logging.getLogger(__name__)
@@ -29,6 +31,7 @@ class TrackerState(BaseModel):
     updated_at: Optional[datetime] = None
     refresh_count: int = 0
     source: str = ""
+    market_source: str = ""
     error: Optional[str] = None
     opportunities: list[Opportunity] = []
     # IDs that newly crossed into opportunity status this cycle.
@@ -38,9 +41,19 @@ class TrackerState(BaseModel):
 class OpportunityTracker:
     """Owns the refresh loop and the latest evaluated state."""
 
-    def __init__(self, source: OfferSource, settings: Settings) -> None:
+    def __init__(
+        self,
+        source: OfferSource,
+        settings: Settings,
+        market_provider: MarketDataProvider,
+        portfolio_service: PortfolioService,
+    ) -> None:
         self._source = source
         self._settings = settings
+        self._market = market_provider
+        self._portfolio = portfolio_service
+        self._context: Optional[MarketContext] = None
+        self._last_market_refresh: float = 0.0
         self._state = TrackerState(source=source.name)
         self._task: Optional[asyncio.Task] = None
         self._subscribers: set[asyncio.Queue] = set()
@@ -51,6 +64,16 @@ class OpportunityTracker:
 
     async def start(self) -> None:
         await self._source.startup()
+        await self._refresh_market(force=True)
+        # Load holdings from the source if it provides them.
+        try:
+            positions = await self._source.fetch_positions()
+            if positions is not None:
+                self._portfolio.set_portfolio(positions)
+        except NotImplementedError:
+            pass
+        except Exception as exc:
+            logger.warning("Could not load positions: %s", exc)
         self._task = asyncio.create_task(self._run(), name="opportunity-tracker")
         logger.info("Tracker started (source=%s)", self._source.name)
 
@@ -70,6 +93,17 @@ class OpportunityTracker:
     def state(self) -> TrackerState:
         return self._state
 
+    @property
+    def market_context(self) -> Optional[MarketContext]:
+        return self._context
+
+    @property
+    def portfolio_service(self) -> PortfolioService:
+        return self._portfolio
+
+    def set_portfolio(self, portfolio: Portfolio) -> None:
+        self._portfolio.set_portfolio(portfolio)
+
     def subscribe(self) -> asyncio.Queue:
         """Register a subscriber queue for live snapshots."""
         queue: asyncio.Queue = asyncio.Queue(maxsize=8)
@@ -81,12 +115,29 @@ class OpportunityTracker:
 
     # --- internals ---------------------------------------------------------
 
+    async def _refresh_market(self, force: bool = False) -> None:
+        """Refresh the market context on the slower market cadence."""
+        now = asyncio.get_event_loop().time()
+        due = now - self._last_market_refresh >= self._settings.market_refresh_seconds
+        if not force and not due and self._context is not None:
+            return
+        try:
+            self._context = await self._market.refresh()
+            self._last_market_refresh = now
+        except Exception as exc:
+            logger.warning("Market refresh failed: %s", exc)
+
     async def refresh_once(self) -> TrackerState:
         """Run a single refresh + evaluation cycle and update state."""
         async with self._lock:
             try:
+                await self._refresh_market()
+                if self._context is None:
+                    raise RuntimeError("No market context available")
                 offers = await self._source.fetch_offers()
-                opportunities = evaluate_offers(offers, self._settings)
+                opportunities = evaluate_offers(
+                    offers, self._context, self._portfolio, self._settings
+                )
 
                 current_ids = {
                     o.offer.id for o in opportunities if o.is_opportunity
@@ -98,6 +149,7 @@ class OpportunityTracker:
                     updated_at=datetime.now(timezone.utc),
                     refresh_count=self._state.refresh_count + 1,
                     source=self._source.name,
+                    market_source=self._context.source,
                     error=None,
                     opportunities=opportunities,
                     new_opportunity_ids=new_ids,

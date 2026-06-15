@@ -8,6 +8,7 @@ product type, time to maturity, liquidity, and FGC coverage.
 from __future__ import annotations
 
 from app.models import (
+    DurationMetrics,
     InstitutionHealth,
     Liquidity,
     Offer,
@@ -54,11 +55,12 @@ _LIQUIDITY_RISK: dict[Liquidity, float] = {
 }
 
 # Weights for the blended score (excluding the FGC reduction).
-_W_RATING = 0.40
+_W_RATING = 0.35
 _W_INSTITUTION = 0.25
-_W_PRODUCT = 0.15
-_W_MATURITY = 0.10
-_W_LIQUIDITY = 0.10
+_W_PRODUCT = 0.12
+_W_MATURITY = 0.06
+_W_LIQUIDITY = 0.07
+_W_DURATION = 0.15  # interest-rate (marcação a mercado) sensitivity
 
 # Points subtracted when the paper is covered by the FGC (up to R$250k).
 _FGC_REDUCTION = 12.0
@@ -87,8 +89,12 @@ def _institution_risk(health: InstitutionHealth, flags: list[str]) -> float:
     return min(risk, 100.0)
 
 
-def assess_risk(offer: Offer, health: InstitutionHealth) -> RiskAssessment:
-    """Score the risk of an offer given its issuer's health signals."""
+def assess_risk(
+    offer: Offer,
+    health: InstitutionHealth,
+    duration: DurationMetrics | None = None,
+) -> RiskAssessment:
+    """Score the risk of an offer given its issuer's health and duration."""
     flags: list[str] = []
 
     # Prefer the issuer-level rating; fall back to the offer's own rating.
@@ -109,6 +115,12 @@ def assess_risk(offer: Offer, health: InstitutionHealth) -> RiskAssessment:
 
     institution_risk = _institution_risk(health, flags)
 
+    # Duration risk: modified duration scaled (10y+ modified -> 100).
+    modified = duration.modified if duration is not None else offer.years_to_maturity
+    duration_risk = min(modified / 10.0, 1.0) * 100.0
+    if modified >= 6:
+        flags.append(f"High duration ({modified:.1f}) — rate-sensitive")
+
     fgc_reduction = 0.0
     if offer.fgc_eligible and offer.min_investment <= _FGC_CEILING:
         fgc_reduction = _FGC_REDUCTION
@@ -121,6 +133,7 @@ def assess_risk(offer: Offer, health: InstitutionHealth) -> RiskAssessment:
         + _W_PRODUCT * product_risk
         + _W_MATURITY * maturity_risk
         + _W_LIQUIDITY * liquidity_risk
+        + _W_DURATION * duration_risk
     )
     score = max(0.0, min(100.0, blended - fgc_reduction))
 
@@ -132,5 +145,6 @@ def assess_risk(offer: Offer, health: InstitutionHealth) -> RiskAssessment:
         maturity_factor=round(_W_MATURITY * maturity_risk, 2),
         liquidity_factor=round(_W_LIQUIDITY * liquidity_risk, 2),
         institution_factor=round(_W_INSTITUTION * institution_risk, 2),
+        duration_factor=round(_W_DURATION * duration_risk, 2),
         flags=flags,
     )

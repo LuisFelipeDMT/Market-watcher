@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import abc
 
-from app.models import Offer
+from app.models import Offer, Portfolio
 
 
 class OfferSource(abc.ABC):
@@ -24,5 +24,12 @@ class OfferSource(abc.ABC):
 
     @abc.abstractmethod
     async def fetch_offers(self) -> list[Offer]:
-        """Return the current list of offers available on the platform."""
+        """Return the current list of offers available on the platform.
+
+        Should include both primary and secondary-market offers.
+        """
         raise NotImplementedError
+
+    async def fetch_positions(self) -> Portfolio | None:
+        """Return the investor's current holdings, if the source supports it."""
+        return None
