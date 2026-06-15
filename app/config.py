@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     # bearer token on the API/WS. Keep the dashboard on localhost behind a VPN.
     dashboard_token: str = ""
 
+    # --- Mobile gateway (phone app) ---------------------------------------
+    # Registered devices for push (FCM tokens), persisted here.
+    device_registry_path: str = "data/devices.json"
+    # Firebase Cloud Messaging server key; empty = log pushes (dev).
+    fcm_server_key: str = ""
+
     # Tracker
     refresh_interval_seconds: float = 10.0
     opportunity_threshold: float = 70.0

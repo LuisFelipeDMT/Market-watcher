@@ -178,6 +178,24 @@ field and the full structured `alert`). A failing webhook never breaks a refresh
 | GET    | `/alerts`        | Recent alerts, newest first (`kind`, `limit`)|
 | GET    | `/alerts/health` | Active sinks + buffered count                |
 
+## Mobile gateway + Android app
+
+A phone-facing gateway (`app/mobile/`, `/mobile/*`, behind `DASHBOARD_TOKEN`)
+serves the native Android client (`android/`, scaffold):
+
+| Method | Path                          | Description                              |
+|--------|-------------------------------|------------------------------------------|
+| GET    | `/mobile/proposals`           | Unified ranked feed (renda fixa + equities) |
+| GET    | `/mobile/proposals/{id}`      | One proposal's full detail               |
+| POST   | `/mobile/devices`             | Register an FCM device token for push    |
+| GET/DELETE | `/mobile/devices[/{id}]`  | List / remove registered devices         |
+| GET    | `/mobile/2fa/pending`         | Pending login approvals (forwarded to A) |
+| POST   | `/mobile/2fa/{id}/approve`    | Relay the 2FA code from the phone        |
+
+Push rides on the alerting layer (`PushAlertSink`); the app holds only the
+dashboard token, never credentials. Assisted (ephemeral) purchasing is designed
+but not built — see `docs/consumption-and-mobile-plan.md`.
+
 ## Configuration
 
 All settings come from environment variables / `.env` (see `.env.example`).

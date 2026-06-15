@@ -31,6 +31,10 @@ class AlertService:
                 WebhookSink(settings.alert_webhook_url, settings.market_http_timeout)
             )
 
+    def add_sink(self, sink: AlertSink) -> None:
+        """Register an additional sink (e.g. push to phones) at startup."""
+        self._sinks.append(sink)
+
     async def dispatch(self, alerts: list[Alert]) -> None:
         """Send each alert to every sink concurrently (best-effort)."""
         if not self._enabled or not alerts:

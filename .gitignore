@@ -26,6 +26,14 @@ data/
 # Sealed secret blobs (never commit credential material)
 secrets/
 
+# Android build artifacts / local config / Firebase config
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/google-services.json
+android/.idea/
+
 # Caches
 .pytest_cache/
 .mypy_cache/

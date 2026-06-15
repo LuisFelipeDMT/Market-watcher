@@ -25,6 +25,7 @@ _ANALYSIS_PACKAGES = [
     "app/market",
     "app/alerts",
     "app/api",
+    "app/mobile",
 ]
 
 # Strings that would indicate a path to credentials leaking into zone B.

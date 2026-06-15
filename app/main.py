@@ -10,11 +10,18 @@ from fastapi import FastAPI
 from app import __version__
 from app.alerts import AlertService
 from app.api import alerts_router, equities_router, router
+from app.api.mobile_routes import router as mobile_router
 from app.collector import build_collector_client
 from app.config import get_settings
 from app.equities import EquityTracker, Watchlist
 from app.equities.sources import build_equity_source
 from app.market import build_market_provider
+from app.mobile import (
+    DeviceRegistry,
+    PushAlertSink,
+    build_push_sender,
+    build_twofa_gateway,
+)
 from app.portfolio import PortfolioService
 from app.tracker import OpportunityTracker
 
@@ -43,10 +50,16 @@ async def lifespan(app: FastAPI):
         Watchlist(settings.equity_watchlist_path),
         alert_service,
     )
+    # Mobile gateway: device registry, push sink, and the 2FA app surface.
+    device_registry = DeviceRegistry(settings.device_registry_path)
+    alert_service.add_sink(PushAlertSink(device_registry, build_push_sender(settings)))
+
     app.state.settings = settings
     app.state.alert_service = alert_service
     app.state.tracker = tracker
     app.state.equity_tracker = equity_tracker
+    app.state.device_registry = device_registry
+    app.state.twofa_gateway = build_twofa_gateway(settings)
     await tracker.start()
     await equity_tracker.start()
     try:
@@ -66,6 +79,7 @@ def create_app() -> FastAPI:
     app.include_router(router)
     app.include_router(equities_router)
     app.include_router(alerts_router)
+    app.include_router(mobile_router)
     # Optional app-level auth (in addition to running behind a VPN).
     settings = get_settings()
     if settings.dashboard_token:
