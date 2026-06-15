@@ -8,13 +8,16 @@
   shelf; never moves money or places orders.
 - **Tenancy:** **single-user, self-hosted** — runs on infrastructure you
   control, only your credentials.
-- **Credential model:** **stored encrypted credentials, unattended** — the
-  service logs into XP 24/7 by itself.
+- **Credential model:** **password stored (sealed); 2FA via phone push.** The
+  service stores only the password and runs unattended *between* logins; when XP
+  requires a second factor it pushes an approval request to a phone app that
+  holds the seed and relays the code back. The second factor never sits on the
+  server.
 
 ## The core problem
 
-"Unattended + stored credentials" means a box holds your XP **password and TOTP
-seed** and keeps a live session. That is the crown jewel. Separately, the
+An always-on box holds your XP **password** and a **live session**. That is the
+crown jewel (the TOTP seed stays on your phone — see below). Separately, the
 watcher must ingest the **untrusted internet** (research sites, brapi, ANBIMA,
 BCB, headless-browser scraping) — exactly the surface most likely to be
 compromised (parser bugs, malicious pages, SSRF, dependency supply-chain).
@@ -61,22 +64,42 @@ stays a possible future fallback if unattended login proves fragile.)
   **signed snapshot files** to a drop directory that B reads (no inbound to A at
   all — a software "data diode"). mTLS if A and B are on different hosts.
 
-## Secrets at rest (the hardest part of "unattended")
+## Secrets at rest + the phone-push 2FA flow
 
-Unattended login means the decryption key must be reachable at runtime — so it
-must be bound to *this host*, not a plaintext file:
-- **Recommended:** seal credentials to the TPM via `systemd-creds encrypt`
+Only the **password** is stored; the decryption key must be reachable at runtime,
+so it is bound to *this host*, not a plaintext file:
+- **Recommended:** seal the password to the TPM via `systemd-creds encrypt`
   (TPM2) or `age`/`sops` with a TPM/host key. The box auto-decrypts only on that
   hardware; the key never lives as a readable file.
 - Decrypt into **locked memory** (`mlock`), never to disk, never to logs;
   disable core dumps; scrub on shutdown.
-- Generate the TOTP code on demand from the sealed seed **inside A only**.
-- Credentials and seeds **never** in the repo, `.env` (committed), or B's config.
+- The **TOTP seed never touches the server** — it lives only in the phone app's
+  secure enclave. The password and key **never** appear in the repo, committed
+  `.env`, or B's config.
 
-> **Residual risk (state it plainly):** storing the TOTP seed collapses 2FA to a
-> single factor on one machine. Sealing it to the TPM + isolating A mitigates
-> but does not eliminate this. If XP supports a hardware security key, true
-> unattended automation becomes impossible — an honest trade-off to revisit.
+**Second factor via phone push (attended only at login):**
+```
+Collector hits XP 2FA step
+  → signed approval request pushed to the phone app (with time/trigger context)
+  → user approves; app holds the seed, generates the code, returns it
+  → Collector submits the code, caches the session securely, resumes unattended
+```
+- **Authenticate the reply, not just the push:** the approve+code must come back
+  over mTLS or a signed/single-use challenge so it can't be forged or replayed;
+  show *why/when/from where* to defeat approval-fatigue.
+- **Maximize session reuse:** persist the session cookie (sealed, same as the
+  password) and refresh gracefully, so re-2FA prompts are rare. First discovery
+  task: measure XP's real session lifetime / re-challenge cadence.
+- **Push channel, build-cost-ordered:** start by reusing a secure channel — ntfy
+  (self-hosted), a Telegram bot, or Pushover — riding on the existing
+  `app/alerts/` layer as an authenticated two-way sink; build a bespoke
+  FCM/APNs app only if the polish is wanted.
+
+> **Residual risk (state it plainly):** the password still lives on the box, so a
+> host compromise means rotating it; but a fresh XP login also requires the
+> phone, so the second factor is genuinely separate — a materially stronger
+> posture than storing the seed. Approval-fatigue is the main human risk;
+> mitigate with rich context and single-use, time-boxed approvals.
 
 ## Hardening
 
@@ -110,10 +133,13 @@ must be bound to *this host*, not a plaintext file:
    `collector` (XP scraper + `fetch_positions`) and `analysis` (everything
    else). Define the shared read-only data contract; analysis consumes it via
    an injected client (today: in-process; later: socket/files).
-2. **Sealed secrets.** Encrypted credential store (TPM-sealed); remove plaintext
-   creds from `.env`; load via the sealed store with `mlock` + log scrubbing.
+2. **Sealed secrets.** TPM-sealed **password** store (no seed on the server);
+   remove plaintext creds from `.env`; load via the sealed store with `mlock` +
+   log scrubbing; sealed session-cookie cache.
 3. **Collector service.** Move XP login/session/reads behind A's read-only
    interface (unix socket + token / signed snapshot files); egress allowlist.
+   Implement the **phone-push 2FA broker** — authenticated, single-use
+   approve+code relay riding on `app/alerts/` — plus graceful session reuse.
 4. **Analysis consumes A.** B fetches positions/offers from A's interface; strip
    all `XP_*` config from B. Verify B has no code path to credentials.
 5. **Hardening.** systemd sandbox units / container profiles, firewall rules,
