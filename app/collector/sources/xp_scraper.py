@@ -19,6 +19,13 @@ from __future__ import annotations
 import logging
 
 from app.collector.base import Collector
+from app.collector.secrets import (
+    BrokerCredentials,
+    SecretsProvider,
+    build_secrets_provider,
+    load_broker_credentials,
+)
+from app.collector.session import SessionStore, build_session_store
 from app.config import Settings
 from app.models import Offer, Portfolio
 
@@ -34,17 +41,27 @@ class XPCollector(Collector):
 
     name = "xp"
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        secrets: SecretsProvider | None = None,
+        session_store: SessionStore | None = None,
+    ) -> None:
         self._settings = settings
+        self._secrets = secrets or build_secrets_provider(settings)
+        self._session_store = session_store or build_session_store(
+            settings, self._secrets
+        )
+        self._creds: BrokerCredentials | None = None
         self._browser = None
         self._context = None
         self._page = None
 
     async def startup(self) -> None:
-        if not self._settings.xp_username or not self._settings.xp_password:
-            raise RuntimeError(
-                "OFFER_SOURCE=xp requires XP_USERNAME and XP_PASSWORD to be set."
-            )
+        # Load credentials via the secrets provider (password is sealed; the
+        # TOTP seed is never here — 2FA is approved from the phone). Raises a
+        # clear error if anything required is missing.
+        self._creds = load_broker_credentials(self._settings, self._secrets)
         try:
             from playwright.async_api import async_playwright
         except ImportError as exc:  # pragma: no cover - depends on env
@@ -55,9 +72,15 @@ class XPCollector(Collector):
 
         self._pw = await async_playwright().start()
         self._browser = await self._pw.chromium.launch(headless=True)
-        self._context = await self._browser.new_context()
+        # Reuse a cached, encrypted session when available to avoid a fresh
+        # login (and a phone-push 2FA prompt) on every start.
+        storage_state = self._session_store.load()
+        self._context = await self._browser.new_context(storage_state=storage_state)
         self._page = await self._context.new_page()
-        await self._login()
+        if storage_state is None:
+            await self._login()
+            # Persist the freshly authenticated session for next time.
+            self._session_store.save(await self._context.storage_state())
 
     async def shutdown(self) -> None:
         if self._context is not None:
@@ -75,13 +98,13 @@ class XPCollector(Collector):
         2FA prompt via the phone-push approval broker (see the secure-delivery
         plan); the TOTP seed stays on the phone, never on this host.
         """
-        assert self._page is not None
+        assert self._page is not None and self._creds is not None
         await self._page.goto(LOGIN_URL)
         # TODO: fill in the real selectors for the XP login form, e.g.:
-        # await self._page.fill("#username", self._settings.xp_username)
-        # await self._page.fill("#password", self._settings.xp_password)
+        # await self._page.fill("#username", self._creds.username)
+        # await self._page.fill("#password", self._creds.password.get())
         # await self._page.click("button[type=submit]")
-        # ...handle CPF + phone-push 2FA approval...
+        # ...handle CPF + phone-push 2FA approval (code relayed from phone)...
         raise NotImplementedError(
             "XP login selectors are not yet wired. Inspect the live page and "
             "complete _login(), or run with OFFER_SOURCE=mock."

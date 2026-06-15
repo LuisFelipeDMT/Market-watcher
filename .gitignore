@@ -20,8 +20,11 @@ env/
 *.har
 screenshots/
 
-# Runtime state (persisted equity watchlist, etc.)
+# Runtime state (persisted equity watchlist, encrypted session cache, etc.)
 data/
+
+# Sealed secret blobs (never commit credential material)
+secrets/
 
 # Caches
 .pytest_cache/

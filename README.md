@@ -231,6 +231,14 @@ over time):
 - `fetch_offers()` — parse the primary **and** secondary offers tables.
 - `fetch_positions()` — parse current holdings into a `Portfolio`.
 
+**Credentials are handled in the collector zone only** (`app/collector/secrets.py`):
+the password comes from a pluggable secrets provider — `env` (dev) or `command`
+(a TPM/`age`-sealed blob decrypted via `systemd-creds`/`age`) — wrapped in a
+`SecretStr`, scrubbed from logs, and `mlock`-ed best-effort. The TOTP seed is
+never stored (2FA is approved from your phone). The authenticated session is
+cached encrypted (`app/collector/session.py`, 0600) so re-logins stay rare. See
+`.env.example` and `docs/secure-delivery-plan.md`.
+
 Please respect XP's Terms of Service: only read data your own account can
 already see, and keep the refresh interval reasonable.
 

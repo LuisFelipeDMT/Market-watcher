@@ -136,9 +136,15 @@ Collector hits XP 2FA step
    `InProcessCollectorClient` and later by a socket/snapshot-file remote client
    with no engine change. A test drives the tracker via a fake remote client to
    lock the seam.
-2. **Sealed secrets.** TPM-sealed **password** store (no seed on the server);
-   remove plaintext creds from `.env`; load via the sealed store with `mlock` +
-   log scrubbing; sealed session-cookie cache.
+2. **Sealed secrets. [implemented]** Pluggable secrets provider
+   (`app/collector/secrets.py`): env (dev), `command` (TPM/age-sealed via
+   `systemd-creds`/`age`), memory (tests); `SecretStr` + log redaction +
+   best-effort `mlock`; password sourced from the provider (plaintext `.env`
+   kept only as a warned dev fallback); the TOTP seed never touches the host.
+   Encrypted session cache (`app/collector/session.py`) with pluggable cipher
+   (none/fernet/command) and 0600 perms so re-logins/2FA prompts stay rare.
+   *Operator setup* (TPM/age keys, sealing the blobs) is host-specific and
+   documented in `.env.example`.
 3. **Collector service.** Move XP login/session/reads behind A's read-only
    interface (unix socket + token / signed snapshot files); egress allowlist.
    Implement the **phone-push 2FA broker** — authenticated, single-use

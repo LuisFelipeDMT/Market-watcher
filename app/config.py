@@ -26,6 +26,20 @@ class Settings(BaseSettings):
     xp_totp_secret: str = ""
     xp_positions_url: str = "https://www.xpi.com.br/conta-corrente/extrato/"
 
+    # --- Secrets + session (collector trusted zone) -----------------------
+    # Where the XP password comes from: "env" (XP_PASSWORD, dev), "command"
+    # (decrypt a TPM/age-sealed blob), or "memory" (tests/injection).
+    secrets_provider: str = "env"
+    # Command template for the "command" provider; {key} and {dir} are filled in,
+    # e.g. "systemd-creds decrypt --name={key} {dir}/{key}.cred -".
+    secrets_decrypt_cmd: str = ""
+    secrets_sealed_dir: str = "secrets"
+    # Encrypted session cache so re-logins (and phone-push 2FA) stay rare.
+    session_store_path: str = "data/xp_session.enc"
+    session_cipher: str = "none"  # "none" (dev) | "fernet" | "command"
+    session_cipher_cmd_encrypt: str = ""
+    session_cipher_cmd_decrypt: str = ""
+
     # Tracker
     refresh_interval_seconds: float = 10.0
     opportunity_threshold: float = 70.0
