@@ -8,8 +8,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app import __version__
-from app.api import router
+from app.api import equities_router, router
 from app.config import get_settings
+from app.equities import EquityTracker, Watchlist
+from app.equities.sources import build_equity_source
 from app.market import build_market_provider
 from app.portfolio import PortfolioService
 from app.sources import build_source
@@ -29,12 +31,22 @@ async def lifespan(app: FastAPI):
     tracker = OpportunityTracker(
         source, settings, market_provider, portfolio_service
     )
+    # Equities (renda variável) tracker shares the market provider.
+    equity_tracker = EquityTracker(
+        build_equity_source(settings),
+        settings,
+        build_market_provider(settings),
+        Watchlist(settings.equity_watchlist_path),
+    )
     app.state.settings = settings
     app.state.tracker = tracker
+    app.state.equity_tracker = equity_tracker
     await tracker.start()
+    await equity_tracker.start()
     try:
         yield
     finally:
+        await equity_tracker.stop()
         await tracker.stop()
 
 
@@ -46,6 +58,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(router)
+    app.include_router(equities_router)
     return app
 
 

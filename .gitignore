@@ -20,6 +20,9 @@ env/
 *.har
 screenshots/
 
+# Runtime state (persisted equity watchlist, etc.)
+data/
+
 # Caches
 .pytest_cache/
 .mypy_cache/

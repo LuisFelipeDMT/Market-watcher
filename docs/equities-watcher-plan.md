@@ -1,6 +1,10 @@
 # Plan: Equities (renda variável) watcher — stocks + FIIs
 
-> Status: **plan only** (approved scope). No implementation yet.
+> Status: **implemented** (initial cut). The two-stage engine, fixtures +
+> brapi sources, valuation ensemble, timing state machine, persisted
+> watchlist, `/equities/*` API and tests are live under `app/equities/`.
+> This doc remains the design reference; phases 5–6 (research scraping, CVM)
+> and the shared power-ups in the appendix are still future work.
 > Companion to the existing renda fixa engine; reuses its architecture.
 
 ## Context

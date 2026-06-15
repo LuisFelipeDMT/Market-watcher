@@ -128,6 +128,40 @@ Open `http://localhost:8000/docs` for interactive API docs.
 `limit` (1–500). Each opportunity includes `net_ytm`, `cheapness_bps`,
 `duration`, `macro_penalty`, `fgc_covered_now`, and `sizing`.
 
+## Equities (renda variável: stocks + FIIs)
+
+Alongside the renda fixa engine, a parallel **two-stage** watcher tracks
+Brazilian stocks and FIIs (`app/equities/`): **fundamentals pick the company**
+(quality + value + a margin-of-safety fair-value ensemble) and a **timing engine
+picks the moment** — each name moves through a persisted state machine:
+
+```
+REJECTED ← red flag / low quality / unvaluable
+WATCH    → good business, not cheap enough yet (wait for a lower price)
+ARMED    → cheap enough on valuation, waiting for the technical entry
+TRIGGERED→ in the buy zone AND timing says "now"  ← the buy alert
+```
+
+The fair value is an **ensemble** (Graham, Gordon dividend-discount, two-stage
+DCF, peer-multiple; FIIs use dividend-yield and price-to-NAV anchors). The
+required margin of safety tightens as Selic rises (shared `MarketContext`). The
+timing score blends drawdown from the 52w high, RSI(14), moving-average position
+and proximity to support.
+
+| Method | Path                          | Description                                   |
+|--------|-------------------------------|-----------------------------------------------|
+| GET    | `/equities/health`            | Tracker status + per-state counts             |
+| GET    | `/equities/opportunities`     | Ranked universe (`state`, `kind`, `min_score`)|
+| GET    | `/equities/triggered`         | The "buy now" list (TRIGGERED only)           |
+| GET    | `/equities/watchlist`         | WATCH + ARMED + TRIGGERED names                |
+| GET    | `/equities/{ticker}`          | Full fundamental + valuation + technical view  |
+| POST   | `/equities/refresh`           | Force an immediate equity refresh cycle        |
+| WS     | `/equities/ws`                | Live equity snapshot on every refresh cycle    |
+
+Default `EQUITY_SOURCE=fixtures` ships an offline universe so the engine runs
+without network access; `EQUITY_SOURCE=brapi` overlays live brapi.dev quotes and
+falls back to fixtures per-ticker. Design notes: `docs/equities-watcher-plan.md`.
+
 ## Configuration
 
 All settings come from environment variables / `.env` (see `.env.example`).
@@ -136,6 +170,9 @@ Key ones:
 | Variable                    | Default | Purpose                                    |
 |-----------------------------|---------|--------------------------------------------|
 | `OFFER_SOURCE`              | `mock`  | `mock` or `xp`                             |
+| `EQUITY_SOURCE`             | `fixtures` | `fixtures` or `brapi` (equity universe)  |
+| `STOCK_BASE_MOS` / `FII_BASE_MOS` | `0.15` / `0.08` | Base margin of safety demanded    |
+| `EQUITY_QUALITY_MIN` / `EQUITY_ENTRY_MIN` | `55` / `50` | Pipeline stage gates       |
 | `MARKET_SOURCE`             | `auto`  | `auto` / `live` / `fixtures` reference data |
 | `REFRESH_INTERVAL_SECONDS`  | `10`    | Offer refresh cadence                      |
 | `MARKET_REFRESH_SECONDS`    | `300`   | Reference-data refresh cadence             |

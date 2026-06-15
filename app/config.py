@@ -60,6 +60,29 @@ class Settings(BaseSettings):
     # Macro/duration penalty weight (higher => penalize long duration more).
     macro_penalty_weight: float = 1.0
 
+    # --- Equities (renda variável: stocks + FIIs) --------------------------
+    equity_source: str = "fixtures"  # "fixtures" | "brapi"
+    brapi_base_url: str = "https://brapi.dev/api"
+    brapi_token: str = ""
+    # Where the persisted per-ticker watch state lives.
+    equity_watchlist_path: str = "data/equity_watchlist.json"
+
+    # Valuation: discount rate = Selic + this equity risk premium (fraction).
+    equity_risk_premium: float = 0.05
+    # Base margin of safety demanded before arming (fraction of fair value).
+    stock_base_mos: float = 0.15
+    fii_base_mos: float = 0.08
+    # MoS macro tightening: extra MoS per point of Selic above the neutral level.
+    mos_neutral_selic: float = 8.0
+    mos_macro_factor: float = 1.0
+    # FII valuation anchors.
+    fii_target_dy: float = 0.085  # dividend yield used for the DY fair value
+    fii_target_pvp: float = 1.0  # fair price-to-NAV
+
+    # Stage gates.
+    equity_quality_min: float = 55.0  # below this a name is rejected
+    equity_entry_min: float = 50.0  # entry_score needed to flip ARMED→TRIGGERED
+
     # FGC limits (BRL).
     fgc_per_institution: float = 250_000.0
     fgc_global_4y: float = 1_000_000.0
