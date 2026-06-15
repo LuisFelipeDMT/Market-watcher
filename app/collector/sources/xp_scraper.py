@@ -26,6 +26,7 @@ from app.collector.secrets import (
     load_broker_credentials,
 )
 from app.collector.session import SessionStore, build_session_store
+from app.collector.twofa import TwoFactorBroker
 from app.config import Settings
 from app.models import Offer, Portfolio
 
@@ -46,12 +47,15 @@ class XPCollector(Collector):
         settings: Settings,
         secrets: SecretsProvider | None = None,
         session_store: SessionStore | None = None,
+        twofa: TwoFactorBroker | None = None,
     ) -> None:
         self._settings = settings
         self._secrets = secrets or build_secrets_provider(settings)
         self._session_store = session_store or build_session_store(
             settings, self._secrets
         )
+        # Same broker instance the collector server exposes for phone approvals.
+        self.twofa = twofa or TwoFactorBroker(settings)
         self._creds: BrokerCredentials | None = None
         self._browser = None
         self._context = None
@@ -104,7 +108,10 @@ class XPCollector(Collector):
         # await self._page.fill("#username", self._creds.username)
         # await self._page.fill("#password", self._creds.password.get())
         # await self._page.click("button[type=submit]")
-        # ...handle CPF + phone-push 2FA approval (code relayed from phone)...
+        # When XP prompts for the second factor, request it from the phone:
+        #     code = await self.twofa.request_code("XP login")
+        #     await self._page.fill("#otp", code)
+        # The seed lives on the phone; this host never sees it.
         raise NotImplementedError(
             "XP login selectors are not yet wired. Inspect the live page and "
             "complete _login(), or run with OFFER_SOURCE=mock."

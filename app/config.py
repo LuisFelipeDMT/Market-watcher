@@ -40,6 +40,20 @@ class Settings(BaseSettings):
     session_cipher_cmd_encrypt: str = ""
     session_cipher_cmd_decrypt: str = ""
 
+    # --- Collector transport (zone A ↔ zone B) ----------------------------
+    # How the analysis zone reaches the collector: "inprocess" (default, single
+    # process), "snapshot" (signed files — recommended, no inbound to A), or
+    # "http" (read-only API over a Unix socket + token).
+    collector_transport: str = "inprocess"
+    collector_socket_path: str = "run/collector.sock"
+    collector_url: str = "http://collector"  # Host header for the uds client
+    collector_token: str = ""  # bearer token for the http transport
+    snapshot_dir: str = "data/snapshots"
+    snapshot_key: str = ""  # HMAC key signing the snapshot files
+    collector_snapshot_interval: float = 10.0
+    # Phone-push 2FA: seconds to wait for an approval before giving up.
+    twofa_timeout_seconds: float = 120.0
+
     # Tracker
     refresh_interval_seconds: float = 10.0
     opportunity_threshold: float = 70.0

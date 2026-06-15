@@ -15,11 +15,24 @@ from app.config import Settings
 
 
 def build_collector_client(settings: Settings) -> CollectorClient:
-    """Build the configured collector wrapped in the current transport.
+    """Build the collector client for the configured transport.
 
-    Today that is in-process; a future ``remote`` mode will return a
-    ``RemoteCollectorClient`` with the same interface.
+    - ``inprocess`` (default): runs the collector in the same process.
+    - ``snapshot``: reads signed snapshot files (no inbound to the collector).
+    - ``http``: calls the collector's read-only API over a Unix socket.
+
+    The ``snapshot``/``http`` clients have **no** path to the credentials, so
+    the analysis zone can run without any brokerage secrets.
     """
+    transport = settings.collector_transport.lower()
+    if transport == "snapshot":
+        from app.collector.remote import SnapshotFileCollectorClient
+
+        return SnapshotFileCollectorClient(settings)
+    if transport == "http":
+        from app.collector.remote import RemoteHttpCollectorClient
+
+        return RemoteHttpCollectorClient(settings)
     return InProcessCollectorClient(build_collector(settings))
 
 

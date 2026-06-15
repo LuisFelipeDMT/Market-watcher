@@ -145,10 +145,17 @@ Collector hits XP 2FA step
    (none/fernet/command) and 0600 perms so re-logins/2FA prompts stay rare.
    *Operator setup* (TPM/age keys, sealing the blobs) is host-specific and
    documented in `.env.example`.
-3. **Collector service.** Move XP login/session/reads behind A's read-only
-   interface (unix socket + token / signed snapshot files); egress allowlist.
-   Implement the **phone-push 2FA broker** — authenticated, single-use
-   approve+code relay riding on `app/alerts/` — plus graceful session reuse.
+3. **Collector service. [implemented]** Standalone collector
+   (`app/collector/server.py`, run-as-its-own-process) exposes read-only
+   GET-only endpoints behind a bearer token over a Unix socket; the safer
+   data-diode transport is signed snapshot files (`app/collector/snapshot.py`
+   + `producer.py`). The analysis zone consumes either via
+   `RemoteHttpCollectorClient` / `SnapshotFileCollectorClient`
+   (`app/collector/remote.py`), selected by `COLLECTOR_TRANSPORT`. The
+   **phone-push 2FA broker** (`app/collector/twofa.py`) issues time-boxed,
+   single-use approval requests with a pluggable push notifier and an
+   authenticated `/2fa/{id}/approve` return channel; encrypted session reuse
+   keeps prompts rare. *Real push channel + XP selectors are integration-later.*
 4. **Analysis consumes A.** B fetches positions/offers from A's interface; strip
    all `XP_*` config from B. Verify B has no code path to credentials.
 5. **Hardening.** systemd sandbox units / container profiles, firewall rules,
