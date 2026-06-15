@@ -16,6 +16,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from app.alerts import AlertService, equity_alert
 from app.config import Settings
 from app.equities.analysis import evaluate_universe
 from app.equities.models import EquityOpportunity, WatchState
@@ -51,11 +52,13 @@ class EquityTracker:
         settings: Settings,
         market_provider: MarketDataProvider,
         watchlist: Watchlist,
+        alerts: Optional[AlertService] = None,
     ) -> None:
         self._source = source
         self._settings = settings
         self._market = market_provider
         self._watchlist = watchlist
+        self._alerts = alerts
         self._context: Optional[MarketContext] = None
         self._last_market_refresh: float = 0.0
         self._state = EquityTrackerState(source=source.name)
@@ -113,6 +116,7 @@ class EquityTracker:
             logger.warning("Market refresh failed: %s", exc)
 
     async def refresh_once(self) -> EquityTrackerState:
+        alerts_to_send: list = []
         async with self._lock:
             try:
                 await self._refresh_market()
@@ -144,6 +148,13 @@ class EquityTracker:
                 )
                 if newly_triggered:
                     logger.info("Newly triggered: %s", ", ".join(newly_triggered))
+                    if self._alerts is not None:
+                        by_ticker = {o.ticker: o for o in opportunities}
+                        alerts_to_send = [
+                            equity_alert(by_ticker[t])
+                            for t in newly_triggered
+                            if t in by_ticker
+                        ]
             except Exception as exc:
                 logger.exception("Equity refresh failed: %s", exc)
                 self._state = self._state.model_copy(
@@ -153,6 +164,8 @@ class EquityTracker:
                     }
                 )
         await self._broadcast(self._state)
+        if self._alerts is not None and alerts_to_send:
+            await self._alerts.dispatch(alerts_to_send)
         return self._state
 
     async def _run(self) -> None:

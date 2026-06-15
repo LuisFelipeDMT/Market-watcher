@@ -8,7 +8,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app import __version__
-from app.api import equities_router, router
+from app.alerts import AlertService
+from app.api import alerts_router, equities_router, router
 from app.config import get_settings
 from app.equities import EquityTracker, Watchlist
 from app.equities.sources import build_equity_source
@@ -25,11 +26,13 @@ async def lifespan(app: FastAPI):
         level=settings.log_level.upper(),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    # Shared alerting service feeds both trackers.
+    alert_service = AlertService(settings)
     source = build_source(settings)
     market_provider = build_market_provider(settings)
     portfolio_service = PortfolioService(settings)
     tracker = OpportunityTracker(
-        source, settings, market_provider, portfolio_service
+        source, settings, market_provider, portfolio_service, alert_service
     )
     # Equities (renda variável) tracker shares the market provider.
     equity_tracker = EquityTracker(
@@ -37,8 +40,10 @@ async def lifespan(app: FastAPI):
         settings,
         build_market_provider(settings),
         Watchlist(settings.equity_watchlist_path),
+        alert_service,
     )
     app.state.settings = settings
+    app.state.alert_service = alert_service
     app.state.tracker = tracker
     app.state.equity_tracker = equity_tracker
     await tracker.start()
@@ -59,6 +64,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(router)
     app.include_router(equities_router)
+    app.include_router(alerts_router)
     return app
 
 

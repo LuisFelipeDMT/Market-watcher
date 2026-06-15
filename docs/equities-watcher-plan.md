@@ -153,7 +153,9 @@ Each phase independently testable; app stays runnable on fixtures throughout.
 
 These were proposed alongside and are shared infrastructure:
 1. **Alerting** on new cheap secondary offers / TRIGGERED stocks (push/webhook/
-   Telegram) — biggest usefulness multiplier.
+   Telegram) — biggest usefulness multiplier. **[implemented]** — `app/alerts/`
+   with log + in-memory + webhook sinks, wired into both trackers and exposed at
+   `/alerts`.
 2. **Persistence + history** of curves, spreads, prices, opportunities →
    "cheaper than its 30-day norm", spread/price evolution, backtesting.
 3. **Marcação-a-mercado on held bonds** → early-exit (sell) alerts.

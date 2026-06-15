@@ -83,6 +83,15 @@ class Settings(BaseSettings):
     equity_quality_min: float = 55.0  # below this a name is rejected
     equity_entry_min: float = 50.0  # entry_score needed to flip ARMED→TRIGGERED
 
+    # --- Alerts ------------------------------------------------------------
+    alerts_enabled: bool = True
+    # Optional generic JSON webhook (Slack/Discord/Telegram-compatible).
+    alert_webhook_url: str = ""
+    # Only alert above this opportunity score (0 = alert on everything flagged).
+    alert_min_score: float = 0.0
+    # How many recent alerts to keep in memory for the /alerts endpoint.
+    alert_history_size: int = 100
+
     # FGC limits (BRL).
     fgc_per_institution: float = 250_000.0
     fgc_global_4y: float = 1_000_000.0

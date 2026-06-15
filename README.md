@@ -162,6 +162,20 @@ Default `EQUITY_SOURCE=fixtures` ships an offline universe so the engine runs
 without network access; `EQUITY_SOURCE=brapi` overlays live brapi.dev quotes and
 falls back to fixtures per-ticker. Design notes: `docs/equities-watcher-plan.md`.
 
+## Alerts
+
+A shared alerting layer (`app/alerts/`) fires whenever a renda fixa offer newly
+becomes an opportunity or an equity newly enters the buy zone (TRIGGERED). Both
+trackers already de-duplicate, so you get one alert per event. Alerts are always
+logged and kept in memory; set `ALERT_WEBHOOK_URL` to also push them to a generic
+JSON webhook (Slack/Discord/Telegram-compatible — the payload has both a `text`
+field and the full structured `alert`). A failing webhook never breaks a refresh.
+
+| Method | Path             | Description                                  |
+|--------|------------------|----------------------------------------------|
+| GET    | `/alerts`        | Recent alerts, newest first (`kind`, `limit`)|
+| GET    | `/alerts/health` | Active sinks + buffered count                |
+
 ## Configuration
 
 All settings come from environment variables / `.env` (see `.env.example`).

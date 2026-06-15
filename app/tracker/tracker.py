@@ -15,6 +15,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from app.alerts import AlertService, offer_alert
 from app.analysis import evaluate_offers
 from app.config import Settings
 from app.market.base import MarketDataProvider
@@ -47,11 +48,13 @@ class OpportunityTracker:
         settings: Settings,
         market_provider: MarketDataProvider,
         portfolio_service: PortfolioService,
+        alerts: Optional[AlertService] = None,
     ) -> None:
         self._source = source
         self._settings = settings
         self._market = market_provider
         self._portfolio = portfolio_service
+        self._alerts = alerts
         self._context: Optional[MarketContext] = None
         self._last_market_refresh: float = 0.0
         self._state = TrackerState(source=source.name)
@@ -129,6 +132,7 @@ class OpportunityTracker:
 
     async def refresh_once(self) -> TrackerState:
         """Run a single refresh + evaluation cycle and update state."""
+        alerts_to_send: list = []
         async with self._lock:
             try:
                 await self._refresh_market()
@@ -156,6 +160,13 @@ class OpportunityTracker:
                 )
                 if new_ids:
                     logger.info("New opportunities: %s", ", ".join(new_ids))
+                    if self._alerts is not None:
+                        flagged = {
+                            o.offer.id: o for o in opportunities if o.is_opportunity
+                        }
+                        alerts_to_send = [
+                            offer_alert(flagged[i]) for i in new_ids if i in flagged
+                        ]
             except Exception as exc:  # keep the loop alive on transient errors
                 logger.exception("Refresh failed: %s", exc)
                 self._state = self._state.model_copy(
@@ -165,6 +176,8 @@ class OpportunityTracker:
                     }
                 )
         await self._broadcast(self._state)
+        if self._alerts is not None and alerts_to_send:
+            await self._alerts.dispatch(alerts_to_send)
         return self._state
 
     async def _run(self) -> None:
