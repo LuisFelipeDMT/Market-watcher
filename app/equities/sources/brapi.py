@@ -16,6 +16,7 @@ import httpx
 from app.config import Settings
 from app.equities.sources.base import EquitySnapshot
 from app.equities.sources.fixtures import FixturesEquitySource
+from app.security import validate_public_url
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class BrapiEquitySource(FixturesEquitySource):
             "Accept": "application/json",
         }
         try:
+            validate_public_url(url)  # SSRF guard before any outbound fetch
             async with httpx.AsyncClient(
                 timeout=self._settings.market_http_timeout,
                 headers=headers,

@@ -162,8 +162,12 @@ Collector hits XP 2FA step
    importing the remote clients pulls in neither the secrets module nor the
    producer (checked in a clean subprocess), and a static scan asserts the
    analysis packages contain no credential references.
-5. **Hardening.** systemd sandbox units / container profiles, firewall rules,
-   SSRF guards on the scrapers, dependency hash-pinning + `pip-audit`.
+5. **Hardening. [implemented]** SSRF guard (`app/security/ssrf.py`, wired into
+   the brapi fetch) blocks non-HTTP schemes and hosts resolving to
+   private/loopback/link-local/metadata ranges. `deploy/` ships hardened systemd
+   units for both zones, an nftables egress allowlist for the collector, a
+   two-zone deployment guide, and `scripts/audit.sh` (pip-audit + committed-
+   secret scan; hash-pinning documented).
 6. **Observability + runbooks.** Audit log of A's actions (no secrets);
    **reuse the alerting layer** for security signals (login failures, new-device
    prompts, egress-allowlist denials); encrypted backups; credential-rotation

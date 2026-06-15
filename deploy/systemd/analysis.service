@@ -1,0 +1,43 @@
+# Untrusted analysis zone (no credentials). Broad internet egress, behind VPN.
+# Runs with COLLECTOR_TRANSPORT=snapshot so it reads signed snapshots only.
+[Unit]
+Description=Market Watcher Analysis (untrusted zone)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mw-analysis
+Group=mw-analysis
+WorkingDirectory=/opt/market-watcher
+# This env file must NOT contain any XP_* / secret values.
+EnvironmentFile=/opt/market-watcher/.env.analysis
+ExecStart=/opt/market-watcher/.venv/bin/python -m uvicorn app.main:app \
+    --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+
+# --- sandboxing -----------------------------------------------------------
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+# Reads snapshots, writes its own watchlist/alerts state.
+ReadWritePaths=/opt/market-watcher/data
+ReadOnlyPaths=/opt/market-watcher/data/snapshots
+
+[Install]
+WantedBy=multi-user.target
