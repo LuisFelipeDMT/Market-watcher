@@ -156,8 +156,12 @@ Collector hits XP 2FA step
    single-use approval requests with a pluggable push notifier and an
    authenticated `/2fa/{id}/approve` return channel; encrypted session reuse
    keeps prompts rare. *Real push channel + XP selectors are integration-later.*
-4. **Analysis consumes A.** B fetches positions/offers from A's interface; strip
-   all `XP_*` config from B. Verify B has no code path to credentials.
+4. **Analysis consumes A. [implemented]** With `COLLECTOR_TRANSPORT=snapshot|http`
+   the analysis service reaches the brokerage only through the remote client and
+   needs **no** `XP_*` / secrets config. `tests/test_isolation.py` enforces it:
+   importing the remote clients pulls in neither the secrets module nor the
+   producer (checked in a clean subprocess), and a static scan asserts the
+   analysis packages contain no credential references.
 5. **Hardening.** systemd sandbox units / container profiles, firewall rules,
    SSRF guards on the scrapers, dependency hash-pinning + `pip-audit`.
 6. **Observability + runbooks.** Audit log of A's actions (no secrets);
