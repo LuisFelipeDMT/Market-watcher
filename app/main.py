@@ -66,6 +66,12 @@ def create_app() -> FastAPI:
     app.include_router(router)
     app.include_router(equities_router)
     app.include_router(alerts_router)
+    # Optional app-level auth (in addition to running behind a VPN).
+    settings = get_settings()
+    if settings.dashboard_token:
+        from app.api.auth import BearerAuthMiddleware
+
+        app.add_middleware(BearerAuthMiddleware, token=settings.dashboard_token)
     return app
 
 

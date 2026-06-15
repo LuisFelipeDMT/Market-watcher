@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     # Append-only collector audit trail (empty = disabled).
     audit_log_path: str = "data/audit.log"
 
+    # Dashboard auth (analysis zone). Empty = open (dev); set to require a
+    # bearer token on the API/WS. Keep the dashboard on localhost behind a VPN.
+    dashboard_token: str = ""
+
     # Tracker
     refresh_interval_seconds: float = 10.0
     opportunity_threshold: float = 70.0

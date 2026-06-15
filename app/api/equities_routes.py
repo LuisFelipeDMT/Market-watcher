@@ -85,6 +85,11 @@ async def force_refresh(request: Request) -> EquityTrackerState:
 @router.websocket("/ws")
 async def ws_updates(websocket: WebSocket) -> None:
     """Stream a fresh equity snapshot on every refresh cycle."""
+    from app.api.auth import ws_authorized
+
+    if not ws_authorized(websocket):
+        await websocket.close(code=1008)
+        return
     await websocket.accept()
     tracker: EquityTracker = websocket.app.state.equity_tracker
     queue = tracker.subscribe()

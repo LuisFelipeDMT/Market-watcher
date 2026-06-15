@@ -1,7 +1,11 @@
 # Plan: Secure delivery — live data with brokerage access
 
-> Status: **plan only.** Architecture/security design for going live against a
-> real XP account. No secure-backend code written yet.
+> Status: **all 7 phases implemented (mechanisms).** The two-zone split, sealed
+> secrets, isolated collector + transports, phone-push 2FA broker, credential-
+> isolation tests, hardening (SSRF + deploy artifacts), observability/runbooks,
+> and dashboard auth are all in the codebase. **Not yet wired:** the live XP
+> selectors and the real phone push channel — deliberately deferred ("plug to
+> real sources later"). See `deploy/README.md` and `docs/runbooks.md` to operate.
 
 ## Locked decisions
 - **Access scope:** **read-only** — reads positions, balances and the offer
@@ -173,7 +177,11 @@ Collector hits XP 2FA step
    broker; `AlertKind.SECURITY` + `security_alert()` reuse the alerting layer for
    ops signals; `docs/runbooks.md` (monitoring, credential rotation, incident
    response/kill switch) and `scripts/backup.sh` (age-encrypted backups).
-7. **Remote access (optional).** VPN + authn in front of B's dashboard only.
+7. **Remote access. [implemented]** Optional `BearerAuthMiddleware`
+   (`app/api/auth.py`, `DASHBOARD_TOKEN`) protects the REST API and WebSockets
+   (health/docs exempt); `deploy/Caddyfile.example` + the deploy guide cover the
+   VPN-first (Tailscale/WireGuard) reverse-proxy setup. App-level auth is
+   defence-in-depth on top of keeping the dashboard off the public internet.
 
 ## Mapping to the current codebase
 - **Collector (A) [done in Phase 1]:** `app/collector/` —

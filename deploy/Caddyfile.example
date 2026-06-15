@@ -1,0 +1,16 @@
+# Optional TLS reverse proxy for the analysis dashboard.
+# Prefer reaching it over a VPN (Tailscale/WireGuard) and NOT exposing it to the
+# public internet. If you must, terminate TLS here and keep DASHBOARD_TOKEN set.
+#
+#   caddy run --config deploy/Caddyfile.example
+
+# Tailscale hostname example (auto-HTTPS within your tailnet):
+market-watcher.your-tailnet.ts.net {
+    reverse_proxy 127.0.0.1:8000
+    # The app also checks DASHBOARD_TOKEN; this is defence-in-depth.
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+    }
+}
