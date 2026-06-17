@@ -1,77 +1,91 @@
 # Pending tasks
 
-Granular checklist of what's **left**. Everything below is unchecked = not done.
-Already built (for context): renda fixa engine, equities engine (stocks + FIIs),
-alerting, secure-delivery phases 1–7 (mechanisms), mobile gateway, Android
-scaffold. See the `docs/*-plan.md` files for design.
+Split by what we can do **now** (build + test in this repo, no live XP) vs what
+is **blocked** on live access / external credentials / the target host.
+All boxes unchecked = not done. See `docs/*-plan.md` for design.
 
-## 1. Live integrations (the two deferred seams)
-- [ ] XP `_login()` selectors against the live site
-- [ ] XP `fetch_offers()` — parse primary offers table
-- [ ] XP `fetch_offers()` — parse secondary-market table (PU, taxa de compra, qty)
-- [ ] XP `fetch_positions()` — parse holdings → `Portfolio`
-- [ ] Measure XP session lifetime / re-2FA cadence (drives UX)
-- [ ] Real 2FA push channel (replace the log notifier: ntfy / Telegram / FCM)
-- [ ] `EQUITY_SOURCE=brapi` — verify live quotes/history mapping
-- [ ] Verify live market data (BCB SGS/Focus, Tesouro, ANBIMA) end-to-end
+---
 
-## 2. Assisted purchase — write path (designed, not built)
-- [ ] Order-intent model + signing (ticker, qty, price, total)
-- [ ] Per-order confirmation UI showing exact ticker/qty/price/total
-- [ ] Ephemeral-credential screen (password + token per order, never stored)
-- [ ] Dedicated executor process (isolated, on-demand, own user)
-- [ ] Spending limits (per-order + daily)
-- [ ] Idempotency keys (never double-buy on retry)
-- [ ] Order audit-log entry + push receipt
-- [ ] XP order placement via the authenticated browser session
-- [ ] Kill switch for the executor
-- [ ] Test on tiny amounts before any real use
+# ✅ Executable now (no live XP needed)
 
-## 3. Persistence + history (power-up, fully testable here)
+## Persistence + history (fully testable on fixtures/mock)
 - [ ] Time-series store (prices, curves, spreads, opportunities)
 - [ ] "Cheaper than its 30-day norm" signal
 - [ ] Spread/price evolution history endpoints
 - [ ] Backtesting harness for the cheapness/opportunity signal
-- [ ] Marcação-a-mercado on holdings → sell / early-exit alerts
+- [ ] Marcação-a-mercado on the mock portfolio → sell / early-exit alerts
 
-## 4. Other analysis power-ups
-- [ ] "Deploy R$X" allocator (FGC caps + diversification constrained allocation)
-- [ ] Copom-aware duration windows
-- [ ] Live institution health (BCB IF.data + news sentiment)
+## Analysis power-ups (fixtures-based; live feeds verified later)
+- [ ] "Deploy R$X" allocator (FGC caps + diversification)
+- [ ] Copom-aware duration windows (uses Focus data already in MarketContext)
 - [ ] Index-consistent IPCA cheapness
-- [ ] Equities phase 5–6: scrape XP/BTG research + analyst targets; CVM DFP/ITR
+- [ ] Institution-health framework + scoring (static/fixtures registry now)
 
-## 5. Android app (scaffold → shippable)
-- [ ] Add Firebase `google-services.json` + enable FCM deps/plugin
-- [ ] Implement `PushService` (onNewToken → register; onMessageReceived → notify)
-- [ ] Register device on launch / token refresh (uses `AppSettings.deviceId`)
-- [ ] Runtime `POST_NOTIFICATIONS` permission request
-- [ ] Notification deep-link to the 2FA tab
+## Assisted-purchase machinery (everything except the real order step)
+- [ ] Order-intent model + signing (ticker, qty, price, total)
+- [ ] Spending limits (per-order + daily) + tests
+- [ ] Idempotency keys (never double-buy) + tests
+- [ ] Executor skeleton behind a `MockExecutor` (simulated fills) + tests
+- [ ] Kill switch + state machine (armed/confirmed/executed/aborted)
+- [ ] Order audit entries + push receipt (reuse audit + push layers)
+- [ ] Ephemeral-credential handling (in-memory only, never persisted) + tests
+
+## Push / 2FA delivery adapters (mocked-HTTP tests; real creds verified later)
+- [ ] `ntfy` notifier (self-hostable) for 2FA + alerts
+- [ ] Telegram bot notifier for 2FA + alerts
+- [ ] Wire the chosen notifier into the 2FA broker (replace the log notifier)
+- [ ] FCM sender path covered by mocked tests
+
+## Data parsing hardening (recorded payloads, no live calls)
+- [ ] brapi response mapping tests against saved sample payloads
+- [ ] Equities research/CVM model + parser scaffolding (against saved samples)
+
+## Android client (write now; compile/test off-sandbox in Android Studio)
 - [ ] Loading / empty / error states across screens
 - [ ] Pull-to-refresh + auto-refresh on the feed
-- [ ] App theming, icon, name polish
+- [ ] Notification deep-link to the 2FA tab (UI side)
+- [ ] App theming, icon, name
 - [ ] Biometric unlock (optional)
-- [ ] Build + sign + sideload/distribute APK
+- [ ] `PushService` implementation (registration + notify) — code, not verified here
 
-## 6. Security / ops setup (host-specific, operator)
+## Repo / process
+- [ ] `pip-audit` run + wire into CI (`scripts/audit.sh`)
+- [ ] Dependency hash-pinning (`pip-compile --generate-hashes`)
+- [ ] Add `cryptography` to requirements if Fernet session cipher is adopted
+
+---
+
+# ⛔ Pending live integration (blocked)
+
+## Needs a live XP session
+- [ ] XP `_login()` selectors against the live site
+- [ ] XP `fetch_offers()` — primary offers table
+- [ ] XP `fetch_offers()` — secondary table (PU, taxa de compra, qty)
+- [ ] XP `fetch_positions()` → `Portfolio`
+- [ ] Measure XP session lifetime / re-2FA cadence
+- [ ] Real XP order placement (the executor's actual buy step)
+- [ ] Test the full buy flow on tiny amounts / paper account
+- [ ] Confirm read-only by attempting (and failing) a write at the boundary
+
+## Needs external credentials / network to verify
+- [ ] `EQUITY_SOURCE=brapi` live verification
+- [ ] Live BCB SGS/Focus, Tesouro, ANBIMA end-to-end verification
+- [ ] Real push delivery verification (FCM key / Telegram token / ntfy)
+- [ ] Firebase `google-services.json` for the Android app
+- [ ] Live XP/BTG research scrape + CVM DFP/ITR ingestion
+- [ ] Live institution health feeds (BCB IF.data + news sentiment)
+
+## Needs the target host (ops setup)
 - [ ] Create `mw-collector` / `mw-analysis` users + dirs
-- [ ] Seal XP password (`systemd-creds` / `age`); set `SECRETS_PROVIDER=command`
-- [ ] Set shared `SNAPSHOT_KEY` on both zones
-- [ ] `SESSION_CIPHER=fernet|command` (install `cryptography` or wire `age`)
+- [ ] Seal XP password (`systemd-creds` / `age`); `SECRETS_PROVIDER=command`
+- [ ] Shared `SNAPSHOT_KEY` on both zones; `SESSION_CIPHER=fernet|command`
 - [ ] Install systemd units (`deploy/systemd/*`)
 - [ ] nftables egress allowlist: resolve XP/B3 IPs + refresh timer
 - [ ] VPN (Tailscale/WireGuard) + Caddy reverse proxy; set `DASHBOARD_TOKEN`
-- [ ] Dependency hash-pinning (`pip-compile --generate-hashes`)
-- [ ] `pip-audit` wired into CI (`scripts/audit.sh`)
-- [ ] Chromium/Playwright patch cadence
-- [ ] Scheduled encrypted backups (`scripts/backup.sh` via cron)
+- [ ] Scheduled encrypted backups (cron) + Chromium patch cadence
+- [ ] Android: build + sign + sideload/distribute APK
 
-## 7. Pre-go-live verification
-- [ ] Threat-model checklist sign-off
-- [ ] Run on a funded-but-isolated / paper account first
-- [ ] Confirm read-only by attempting (and failing) a write at the boundary
-
-## 8. Repo / process
-- [ ] Decide PR vs direct-to-master workflow (currently pushing to master)
+## Needs your decision
+- [ ] PR vs direct-to-master workflow
 - [ ] Optionally set `master` as the GitHub default branch
-- [ ] Add `cryptography` to requirements if Fernet session cipher is adopted
+- [ ] Threat-model checklist sign-off before go-live
