@@ -112,6 +112,12 @@ def test_mobile_api_smoke(monkeypatch, tmp_path):
             proposals = client.get("/mobile/proposals").json()
             assert isinstance(proposals, list) and len(proposals) > 0
             assert {"id", "asset_class", "title", "score"} <= set(proposals[0])
+            summary = client.get("/mobile/summary").json()
+            assert summary["total"] == len(proposals)
+            assert sum(summary["counts"].values()) == summary["total"]
+            assert len(summary["top"]) <= 5
+            detail = client.get(f"/mobile/proposals/{proposals[0]['id']}").json()
+            assert detail["id"] == proposals[0]["id"]
             reg = client.post(
                 "/mobile/devices", json={"id": "phone1", "token": "fcm-xyz"}
             )

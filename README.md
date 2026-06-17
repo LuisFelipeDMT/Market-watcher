@@ -185,6 +185,7 @@ serves the native Android client (`android/`, scaffold):
 
 | Method | Path                          | Description                              |
 |--------|-------------------------------|------------------------------------------|
+| GET    | `/mobile/summary`             | At-a-glance counts by asset class + top names |
 | GET    | `/mobile/proposals`           | Unified ranked feed (renda fixa + equities) |
 | GET    | `/mobile/proposals/{id}`      | One proposal's full detail               |
 | POST   | `/mobile/devices`             | Register an FCM device token for push    |

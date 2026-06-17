@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 
 from app.mobile.feed import build_proposals
-from app.mobile.models import DeviceRegistration, Proposal
+from app.mobile.models import DeviceRegistration, FeedSummary, Proposal
 
 router = APIRouter(prefix="/mobile", tags=["mobile"])
 
@@ -14,6 +14,26 @@ def _proposals(request: Request) -> list[Proposal]:
     bond_state = request.app.state.tracker.state
     equity_state = request.app.state.equity_tracker.state
     return build_proposals(bond_state.opportunities, equity_state.opportunities)
+
+
+@router.get("/summary", response_model=FeedSummary)
+async def summary(request: Request) -> FeedSummary:
+    """At-a-glance home/badge data: counts by asset class + the top names."""
+    proposals = _proposals(request)
+    counts: dict[str, int] = {}
+    for p in proposals:
+        counts[p.asset_class.value] = counts.get(p.asset_class.value, 0) + 1
+    updates = [
+        request.app.state.tracker.state.updated_at,
+        request.app.state.equity_tracker.state.updated_at,
+    ]
+    updates = [u for u in updates if u is not None]
+    return FeedSummary(
+        updated_at=max(updates) if updates else None,
+        total=len(proposals),
+        counts=counts,
+        top=[p.title for p in proposals[:5]],
+    )
 
 
 @router.get("/proposals", response_model=list[Proposal])

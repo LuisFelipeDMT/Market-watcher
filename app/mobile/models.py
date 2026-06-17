@@ -45,3 +45,12 @@ class DeviceRegistration(BaseModel):
     registered_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
+
+
+class FeedSummary(BaseModel):
+    """At-a-glance home/badge data for the app."""
+
+    updated_at: datetime | None = None
+    total: int = 0
+    counts: dict[str, int] = Field(default_factory=dict)  # by asset class
+    top: list[str] = Field(default_factory=list)  # top proposal titles

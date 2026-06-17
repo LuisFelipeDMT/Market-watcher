@@ -1,5 +1,6 @@
 package com.marketwatcher.app.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.padding
@@ -21,7 +22,7 @@ import com.marketwatcher.app.data.Proposal
 
 /** The unified ranked feed. Tapping a card would open detail (TODO). */
 @Composable
-fun ProposalsScreen(api: MarketWatcherApi) {
+fun ProposalsScreen(api: MarketWatcherApi, onSelect: (Proposal) -> Unit) {
     var proposals by remember { mutableStateOf<List<Proposal>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -37,7 +38,7 @@ fun ProposalsScreen(api: MarketWatcherApi) {
 
     LazyColumn(Modifier.padding(8.dp)) {
         items(proposals) { p ->
-            Card(Modifier.padding(8.dp)) {
+            Card(Modifier.padding(8.dp).clickable { onSelect(p) }) {
                 Column(Modifier.padding(12.dp)) {
                     Text(p.title)
                     Text(p.subtitle)
