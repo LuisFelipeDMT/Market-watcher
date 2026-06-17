@@ -11,6 +11,7 @@ from app import __version__
 from app.alerts import AlertService
 from app.api import alerts_router, equities_router, router
 from app.api.mobile_routes import router as mobile_router
+from app.api.analysis_routes import router as analysis_router
 from app.api.history_routes import router as history_router
 from app.collector import build_collector_client
 from app.config import get_settings
@@ -87,6 +88,7 @@ def create_app() -> FastAPI:
     app.include_router(alerts_router)
     app.include_router(mobile_router)
     app.include_router(history_router)
+    app.include_router(analysis_router)
     # Optional app-level auth (in addition to running behind a VPN).
     settings = get_settings()
     if settings.dashboard_token:
