@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     # Default lookback window for the "cheaper than its norm" comparison.
     history_window_days: float = 30.0
 
+    # --- Assisted purchase (write path) -----------------------------------
+    executor: str = "mock"  # "mock" | "xp" (xp not wired yet)
+    order_signing_key: str = ""  # HMAC key for tamper-evident intents
+    order_ledger_path: str = "data/orders.jsonl"
+    order_max_per_order: float = 50_000.0
+    order_max_daily: float = 100_000.0
+
     # Dashboard auth (analysis zone). Empty = open (dev); set to require a
     # bearer token on the API/WS. Keep the dashboard on localhost behind a VPN.
     dashboard_token: str = ""
