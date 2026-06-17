@@ -9,35 +9,35 @@ All boxes unchecked = not done. See `docs/*-plan.md` for design.
 # ✅ Executable now (no live XP needed)
 
 ## Persistence + history (fully testable on fixtures/mock)
-- [ ] Time-series store (prices, curves, spreads, opportunities)
-- [ ] "Cheaper than its 30-day norm" signal
-- [ ] Spread/price evolution history endpoints
+- [x] Time-series store (prices, curves, spreads, opportunities)
+- [x] "Cheaper than its 30-day norm" signal
+- [x] Spread/price evolution history endpoints
 - [ ] Backtesting harness for the cheapness/opportunity signal
-- [ ] Marcação-a-mercado on the mock portfolio → sell / early-exit alerts
+- [ ] Marcação-a-mercado on the mock portfolio → sell / early-exit alerts (needs cost basis)
 
 ## Analysis power-ups (fixtures-based; live feeds verified later)
-- [ ] "Deploy R$X" allocator (FGC caps + diversification)
-- [ ] Copom-aware duration windows (uses Focus data already in MarketContext)
-- [ ] Index-consistent IPCA cheapness
-- [ ] Institution-health framework + scoring (static/fixtures registry now)
+- [x] "Deploy R$X" allocator (FGC caps + diversification)
+- [x] Copom-aware duration windows (uses Focus data already in MarketContext)
+- [ ] Index-consistent IPCA cheapness (macro view surfaces expected IPCA; full breakeven TODO)
+- [x] Institution-health framework + scoring (static/fixtures registry now)
 
 ## Assisted-purchase machinery (everything except the real order step)
-- [ ] Order-intent model + signing (ticker, qty, price, total)
-- [ ] Spending limits (per-order + daily) + tests
-- [ ] Idempotency keys (never double-buy) + tests
-- [ ] Executor skeleton behind a `MockExecutor` (simulated fills) + tests
-- [ ] Kill switch + state machine (armed/confirmed/executed/aborted)
-- [ ] Order audit entries + push receipt (reuse audit + push layers)
-- [ ] Ephemeral-credential handling (in-memory only, never persisted) + tests
+- [x] Order-intent model + signing (ticker, qty, price, total)
+- [x] Spending limits (per-order + daily) + tests
+- [x] Idempotency keys (never double-buy) + tests
+- [x] Executor skeleton behind a `MockExecutor` (simulated fills) + tests
+- [x] Kill switch + state machine (armed/confirmed/executed/aborted)
+- [x] Order audit entries + push receipt (reuse audit + push layers)
+- [x] Ephemeral-credential handling (in-memory only, never persisted) + tests
 
 ## Push / 2FA delivery adapters (mocked-HTTP tests; real creds verified later)
-- [ ] `ntfy` notifier (self-hostable) for 2FA + alerts
-- [ ] Telegram bot notifier for 2FA + alerts
-- [ ] Wire the chosen notifier into the 2FA broker (replace the log notifier)
-- [ ] FCM sender path covered by mocked tests
+- [x] `ntfy` notifier (self-hostable) for 2FA + alerts
+- [x] Telegram bot notifier for 2FA + alerts
+- [x] Wire the chosen notifier into the 2FA broker (replace the log notifier)
+- [ ] FCM sender path covered by mocked tests (selection tested; send mock TODO)
 
 ## Data parsing hardening (recorded payloads, no live calls)
-- [ ] brapi response mapping tests against saved sample payloads
+- [x] brapi response mapping tests against saved sample payloads
 - [ ] Equities research/CVM model + parser scaffolding (against saved samples)
 
 ## Android client (write now; compile/test off-sandbox in Android Studio)

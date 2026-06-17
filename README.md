@@ -194,8 +194,26 @@ serves the native Android client (`android/`, scaffold):
 | POST   | `/mobile/2fa/{id}/approve`    | Relay the 2FA code from the phone        |
 
 Push rides on the alerting layer (`PushAlertSink`); the app holds only the
-dashboard token, never credentials. Assisted (ephemeral) purchasing is designed
-but not built — see `docs/consumption-and-mobile-plan.md`.
+dashboard token, never credentials.
+
+## History, allocator, macro view & assisted purchase
+
+| Method | Path                       | Description                                  |
+|--------|----------------------------|----------------------------------------------|
+| GET    | `/history/series`          | Raw metric series (`metric`, `key`)          |
+| GET    | `/history/norm`            | Latest vs its recent norm ("cheaper than…")  |
+| GET    | `/allocator?budget=`       | Deploy a budget under FGC/diversification caps|
+| GET    | `/macro/view`              | Copom-aware rate direction + duration posture |
+| POST   | `/orders`                  | Create a signed BUY intent                    |
+| POST   | `/orders/{id}/confirm`     | Confirm an intent                             |
+| POST   | `/orders/{id}/execute`     | Execute with **ephemeral** password + token   |
+| GET    | `/orders`                  | Pending + executed orders + kill-switch state |
+| POST   | `/orders/kill-switch`      | Engage/disengage the kill switch              |
+
+Orders use a `MockExecutor` (simulated fills) with full guardrails — signed
+intents, per-order + daily spend limits, idempotency, kill switch — until the
+live XP step is wired. Credentials are passed only at execute time and never
+stored. See `docs/consumption-and-mobile-plan.md`.
 
 ## Configuration
 

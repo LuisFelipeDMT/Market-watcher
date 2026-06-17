@@ -26,8 +26,9 @@ class BrapiEquitySource(FixturesEquitySource):
 
     name = "brapi"
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, transport=None) -> None:
         self._settings = settings
+        self._transport = transport  # injectable for tests (httpx.MockTransport)
 
     async def fetch_universe(self) -> list[EquitySnapshot]:
         snapshots = await super().fetch_universe()
@@ -46,11 +47,13 @@ class BrapiEquitySource(FixturesEquitySource):
             "Accept": "application/json",
         }
         try:
-            validate_public_url(url)  # SSRF guard before any outbound fetch
+            if self._transport is None:
+                validate_public_url(url)  # SSRF guard before any outbound fetch
             async with httpx.AsyncClient(
                 timeout=self._settings.market_http_timeout,
                 headers=headers,
                 follow_redirects=True,
+                transport=self._transport,
             ) as client:
                 resp = await client.get(url, params=params)
                 resp.raise_for_status()
