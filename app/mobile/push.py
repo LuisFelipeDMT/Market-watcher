@@ -46,9 +46,10 @@ class FcmPushSender(PushSender):
 
     name = "fcm"
 
-    def __init__(self, server_key: str, timeout: float = 8.0) -> None:
+    def __init__(self, server_key: str, timeout: float = 8.0, transport=None) -> None:
         self._key = server_key
         self._timeout = timeout
+        self._transport = transport  # injectable for tests
 
     async def send(self, token: str, title: str, body: str, data: dict | None = None) -> None:
         payload = {
@@ -58,7 +59,7 @@ class FcmPushSender(PushSender):
         }
         headers = {"Authorization": f"key={self._key}", "Content-Type": "application/json"}
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
+            async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
                 resp = await client.post(
                     "https://fcm.googleapis.com/fcm/send", json=payload, headers=headers
                 )

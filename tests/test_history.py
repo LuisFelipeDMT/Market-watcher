@@ -55,6 +55,18 @@ def test_cheapness_handles_empty():
     assert stat.samples == 0 and stat.latest is None
 
 
+def test_backtest_mean_reversion_finds_recovery():
+    from app.history import backtest_mean_reversion
+
+    # A dip well below the prior norm that then recovers → a winning trade.
+    vals = [100, 101, 99, 100, 102, 98, 100, 90, 96, 101, 100]
+    pts = [MetricPoint(metric="equity.price", key="X", value=v) for v in vals]
+    result = backtest_mean_reversion("equity.price", "X", pts, horizon=3, entry_z=1.0)
+    assert result.trades >= 1
+    assert result.avg_return is not None and result.avg_return > 0
+    assert result.win_rate is not None
+
+
 def test_metrics_from_equities_shape():
     from app.equities.analysis import evaluate_universe
     from app.equities.sources.fixtures import FixturesEquitySource

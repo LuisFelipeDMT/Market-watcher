@@ -57,6 +57,27 @@ def test_build_push_sender_selects_backend():
 
 
 @pytest.mark.asyncio
+async def test_fcm_sender_posts_to_fcm():
+    import httpx
+
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+
+        seen["url"] = str(request.url)
+        seen["json"] = json.loads(request.content.decode())
+        seen["auth"] = request.headers.get("authorization")
+        return httpx.Response(200, json={"success": 1})
+
+    sender = FcmPushSender("server-key-xyz", transport=httpx.MockTransport(handler))
+    await sender.send("device-token", "Buy zone: PETR4", "now", {"kind": "EQUITY_TRIGGERED"})
+    assert seen["url"] == "https://fcm.googleapis.com/fcm/send"
+    assert seen["json"]["to"] == "device-token"
+    assert seen["auth"] == "key=server-key-xyz"
+
+
+@pytest.mark.asyncio
 async def test_push_alert_sink_fans_to_all_devices(tmp_path):
     sent: list[tuple[str, str]] = []
 

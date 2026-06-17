@@ -6,7 +6,13 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Query, Request
 
-from app.history import MetricPoint, NormStat, cheapness_vs_norm
+from app.history import (
+    BacktestResult,
+    MetricPoint,
+    NormStat,
+    backtest_mean_reversion,
+    cheapness_vs_norm,
+)
 
 router = APIRouter(prefix="/history", tags=["history"])
 
@@ -34,3 +40,17 @@ async def norm(
     since = datetime.now(timezone.utc) - timedelta(days=days)
     points = request.app.state.history.query(metric, key, since)
     return cheapness_vs_norm(metric, key, points)
+
+
+@router.get("/backtest", response_model=BacktestResult)
+async def backtest(
+    request: Request,
+    metric: str = Query(...),
+    key: str = Query(...),
+    horizon: int = Query(5, ge=1),
+    entry_z: float = Query(1.0, gt=0.0),
+    direction: str = Query("below"),
+) -> BacktestResult:
+    """Mean-reversion sanity check on the cheapness signal over recorded history."""
+    points = request.app.state.history.query(metric, key)
+    return backtest_mean_reversion(metric, key, points, horizon, entry_z, direction)

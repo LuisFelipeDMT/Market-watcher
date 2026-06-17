@@ -12,7 +12,7 @@ All boxes unchecked = not done. See `docs/*-plan.md` for design.
 - [x] Time-series store (prices, curves, spreads, opportunities)
 - [x] "Cheaper than its 30-day norm" signal
 - [x] Spread/price evolution history endpoints
-- [ ] Backtesting harness for the cheapness/opportunity signal
+- [x] Backtesting harness for the cheapness/opportunity signal
 - [ ] Marcação-a-mercado on the mock portfolio → sell / early-exit alerts (needs cost basis)
 
 ## Analysis power-ups (fixtures-based; live feeds verified later)
@@ -34,15 +34,15 @@ All boxes unchecked = not done. See `docs/*-plan.md` for design.
 - [x] `ntfy` notifier (self-hostable) for 2FA + alerts
 - [x] Telegram bot notifier for 2FA + alerts
 - [x] Wire the chosen notifier into the 2FA broker (replace the log notifier)
-- [ ] FCM sender path covered by mocked tests (selection tested; send mock TODO)
+- [x] FCM sender path covered by mocked tests
 
 ## Data parsing hardening (recorded payloads, no live calls)
 - [x] brapi response mapping tests against saved sample payloads
 - [ ] Equities research/CVM model + parser scaffolding (against saved samples)
 
 ## Android client (write now; compile/test off-sandbox in Android Studio)
-- [ ] Loading / empty / error states across screens
-- [ ] Pull-to-refresh + auto-refresh on the feed
+- [x] Loading / empty / error states across screens
+- [ ] Pull-to-refresh + auto-refresh on the feed (manual refresh button added)
 - [ ] Notification deep-link to the 2FA tab (UI side)
 - [ ] App theming, icon, name
 - [ ] Biometric unlock (optional)
