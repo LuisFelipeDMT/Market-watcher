@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     collector_snapshot_interval: float = 10.0
     # Phone-push 2FA: seconds to wait for an approval before giving up.
     twofa_timeout_seconds: float = 120.0
+    # 2FA push channel: "log" (dev) | "ntfy" | "telegram".
+    twofa_notifier: str = "log"
+    ntfy_url: str = "https://ntfy.sh"
+    ntfy_topic: str = ""
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
     # Append-only collector audit trail (empty = disabled).
     audit_log_path: str = "data/audit.log"
 

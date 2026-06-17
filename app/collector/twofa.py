@@ -65,7 +65,11 @@ class TwoFactorBroker:
 
     def __init__(self, settings, notifier: Notifier | None = None, audit=None) -> None:
         self._ttl = settings.twofa_timeout_seconds
-        self._notifier = notifier or _log_notifier
+        if notifier is None:
+            from app.collector.notifiers import build_twofa_notifier
+
+            notifier = build_twofa_notifier(settings)
+        self._notifier = notifier
         self._pending: dict[str, _Pending] = {}
         if audit is None:
             from app.collector.audit import build_audit_log
