@@ -11,10 +11,12 @@ from app import __version__
 from app.alerts import AlertService
 from app.api import alerts_router, equities_router, router
 from app.api.mobile_routes import router as mobile_router
+from app.api.history_routes import router as history_router
 from app.collector import build_collector_client
 from app.config import get_settings
 from app.equities import EquityTracker, Watchlist
 from app.equities.sources import build_equity_source
+from app.history import build_history_store
 from app.market import build_market_provider
 from app.mobile import (
     DeviceRegistry,
@@ -35,12 +37,14 @@ async def lifespan(app: FastAPI):
     )
     # Shared alerting service feeds both trackers.
     alert_service = AlertService(settings)
+    history = build_history_store(settings)
     # Analysis zone talks to the brokerage only through the collector client.
     collector_client = build_collector_client(settings)
     market_provider = build_market_provider(settings)
     portfolio_service = PortfolioService(settings)
     tracker = OpportunityTracker(
-        collector_client, settings, market_provider, portfolio_service, alert_service
+        collector_client, settings, market_provider, portfolio_service,
+        alert_service, history,
     )
     # Equities (renda variável) tracker shares the market provider.
     equity_tracker = EquityTracker(
@@ -49,6 +53,7 @@ async def lifespan(app: FastAPI):
         build_market_provider(settings),
         Watchlist(settings.equity_watchlist_path),
         alert_service,
+        history,
     )
     # Mobile gateway: device registry, push sink, and the 2FA app surface.
     device_registry = DeviceRegistry(settings.device_registry_path)
@@ -56,6 +61,7 @@ async def lifespan(app: FastAPI):
 
     app.state.settings = settings
     app.state.alert_service = alert_service
+    app.state.history = history
     app.state.tracker = tracker
     app.state.equity_tracker = equity_tracker
     app.state.device_registry = device_registry
@@ -80,6 +86,7 @@ def create_app() -> FastAPI:
     app.include_router(equities_router)
     app.include_router(alerts_router)
     app.include_router(mobile_router)
+    app.include_router(history_router)
     # Optional app-level auth (in addition to running behind a VPN).
     settings = get_settings()
     if settings.dashboard_token:

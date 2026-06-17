@@ -53,12 +53,14 @@ class EquityTracker:
         market_provider: MarketDataProvider,
         watchlist: Watchlist,
         alerts: Optional[AlertService] = None,
+        history=None,
     ) -> None:
         self._source = source
         self._settings = settings
         self._market = market_provider
         self._watchlist = watchlist
         self._alerts = alerts
+        self._history = history
         self._context: Optional[MarketContext] = None
         self._last_market_refresh: float = 0.0
         self._state = EquityTrackerState(source=source.name)
@@ -146,6 +148,10 @@ class EquityTracker:
                     newly_triggered=newly_triggered,
                     state_counts=counts,
                 )
+                if self._history is not None:
+                    from app.history import metrics_from_equities
+
+                    self._history.record_many(metrics_from_equities(opportunities))
                 if newly_triggered:
                     logger.info("Newly triggered: %s", ", ".join(newly_triggered))
                     if self._alerts is not None:

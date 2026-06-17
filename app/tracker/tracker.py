@@ -49,12 +49,14 @@ class OpportunityTracker:
         market_provider: MarketDataProvider,
         portfolio_service: PortfolioService,
         alerts: Optional[AlertService] = None,
+        history=None,
     ) -> None:
         self._collector = collector
         self._settings = settings
         self._market = market_provider
         self._portfolio = portfolio_service
         self._alerts = alerts
+        self._history = history
         self._context: Optional[MarketContext] = None
         self._last_market_refresh: float = 0.0
         self._state = TrackerState(source=collector.name)
@@ -158,6 +160,10 @@ class OpportunityTracker:
                     opportunities=opportunities,
                     new_opportunity_ids=new_ids,
                 )
+                if self._history is not None:
+                    from app.history import metrics_from_bonds
+
+                    self._history.record_many(metrics_from_bonds(opportunities))
                 if new_ids:
                     logger.info("New opportunities: %s", ", ".join(new_ids))
                     if self._alerts is not None:

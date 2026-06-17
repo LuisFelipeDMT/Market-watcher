@@ -56,6 +56,11 @@ class Settings(BaseSettings):
     # Append-only collector audit trail (empty = disabled).
     audit_log_path: str = "data/audit.log"
 
+    # --- History (time-series; empty path = disabled) ---------------------
+    history_path: str = "data/history.jsonl"
+    # Default lookback window for the "cheaper than its norm" comparison.
+    history_window_days: float = 30.0
+
     # Dashboard auth (analysis zone). Empty = open (dev); set to require a
     # bearer token on the API/WS. Keep the dashboard on localhost behind a VPN.
     dashboard_token: str = ""
