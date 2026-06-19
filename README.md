@@ -204,6 +204,8 @@ dashboard token, never credentials.
 | GET    | `/history/norm`            | Latest vs its recent norm ("cheaper than…")  |
 | GET    | `/allocator?budget=`       | Deploy a budget under FGC/diversification caps|
 | GET    | `/macro/view`              | Copom-aware rate direction + duration posture |
+| GET    | `/equivalence?index=&rate=`| Convert a quote to its equivalent on every index|
+| GET    | `/compare`                 | All offers on a common basis (nominal/%CDI/IPCA+/Selic+)|
 | POST   | `/orders`                  | Create a signed BUY intent                    |
 | POST   | `/orders/{id}/confirm`     | Confirm an intent                             |
 | POST   | `/orders/{id}/execute`     | Execute with **ephemeral** password + token   |
