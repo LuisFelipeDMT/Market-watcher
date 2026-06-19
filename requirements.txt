@@ -5,7 +5,12 @@ pydantic-settings==2.7.1
 httpx==0.28.1
 python-dotenv==1.0.1
 playwright==1.49.1
+# Enables SESSION_CIPHER=fernet (encrypted session cache). Optional: the app
+# runs without it on SESSION_CIPHER=none/command.
+cryptography==43.0.3
 
 # dev / test
 pytest==8.3.4
 pytest-asyncio==0.25.2
+# Dependency CVE audit (scripts/audit.sh).
+pip-audit==2.7.3

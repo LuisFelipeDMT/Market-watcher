@@ -18,7 +18,7 @@ All boxes unchecked = not done. See `docs/*-plan.md` for design.
 ## Analysis power-ups (fixtures-based; live feeds verified later)
 - [x] "Deploy R$X" allocator (FGC caps + diversification)
 - [x] Copom-aware duration windows (uses Focus data already in MarketContext)
-- [ ] Index-consistent IPCA cheapness (macro view surfaces expected IPCA; full breakeven TODO)
+- [x] Index-consistent IPCA cheapness (breakeven inflation vs comparable prefixado)
 - [x] Institution-health framework + scoring (static/fixtures registry now)
 
 ## Assisted-purchase machinery (everything except the real order step)
@@ -38,11 +38,11 @@ All boxes unchecked = not done. See `docs/*-plan.md` for design.
 
 ## Data parsing hardening (recorded payloads, no live calls)
 - [x] brapi response mapping tests against saved sample payloads
-- [ ] Equities research/CVM model + parser scaffolding (against saved samples)
+- [x] Equities research/CVM model + parser scaffolding (against saved samples)
 
 ## Android client (write now; compile/test off-sandbox in Android Studio)
 - [x] Loading / empty / error states across screens
-- [ ] Pull-to-refresh + auto-refresh on the feed (manual refresh button added)
+- [x] Pull-to-refresh + auto-refresh on the feed (auto-refresh + manual button)
 - [ ] Notification deep-link to the 2FA tab (UI side)
 - [ ] App theming, icon, name
 - [ ] Biometric unlock (optional)
@@ -51,7 +51,7 @@ All boxes unchecked = not done. See `docs/*-plan.md` for design.
 ## Repo / process
 - [ ] `pip-audit` run + wire into CI (`scripts/audit.sh`)
 - [ ] Dependency hash-pinning (`pip-compile --generate-hashes`)
-- [ ] Add `cryptography` to requirements if Fernet session cipher is adopted
+- [x] Add `cryptography` to requirements if Fernet session cipher is adopted
 
 ---
 

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.analysis.allocator import AllocationPlan, allocate
 from app.analysis.copom import MacroView, macro_view
 from app.analysis.equivalence import IndexEquivalence, equivalents, offer_equivalence
+from app.analysis.ipca import IpcaView, breakeven_inflation, ipca_views
 from app.analysis.yields import net_ytm
 from app.models import IndexType
 
@@ -100,3 +101,23 @@ async def compare(
         )
     rows.sort(key=lambda r: r.nominal_annual, reverse=True)
     return rows
+
+
+@router.get("/ipca", response_model=list[IpcaView])
+async def ipca(request: Request) -> list[IpcaView]:
+    """IPCA+ offers vs the comparable prefixado, ranked by cheapness."""
+    tracker = request.app.state.tracker
+    ctx = tracker.market_context
+    if ctx is None:
+        raise HTTPException(status_code=503, detail="Market context not ready")
+    return ipca_views([o.offer for o in tracker.state.opportunities], ctx)
+
+
+@router.get("/ipca/breakeven")
+async def ipca_breakeven(
+    pre: float = Query(..., description="Prefixado nominal % a.a."),
+    real: float = Query(..., description="IPCA real spread %"),
+) -> dict:
+    """Inflation at which IPCA+real equals the given prefixado."""
+    be = breakeven_inflation(pre, real)
+    return {"prefixado": pre, "real_spread": real, "breakeven_inflation": round(be, 4)}

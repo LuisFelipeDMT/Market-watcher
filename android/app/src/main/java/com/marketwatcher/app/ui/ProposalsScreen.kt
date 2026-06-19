@@ -47,6 +47,14 @@ fun ProposalsScreen(api: MarketWatcherApi, onSelect: (Proposal) -> Unit) {
         }
     }
 
+    // Auto-refresh the feed every 60s while the screen is shown.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(60_000)
+            reload++
+        }
+    }
+
     when (phase) {
         Phase.LOADING -> Box(Modifier.fillMaxSize(), Alignment.Center) {
             CircularProgressIndicator()
