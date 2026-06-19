@@ -49,8 +49,8 @@ All boxes unchecked = not done. See `docs/*-plan.md` for design.
 - [ ] `PushService` implementation (registration + notify) — code, not verified here
 
 ## Repo / process
-- [ ] `pip-audit` run + wire into CI (`scripts/audit.sh`)
-- [ ] Dependency hash-pinning (`pip-compile --generate-hashes`)
+- [x] `pip-audit` run + wire into CI (`scripts/audit.sh`) — 0 vulns after upgrades
+- [x] Dependency hash-pinning (`requirements.lock` with hashes)
 - [x] Add `cryptography` to requirements if Fernet session cipher is adopted
 
 ---
