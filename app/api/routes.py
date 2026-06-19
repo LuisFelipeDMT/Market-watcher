@@ -94,6 +94,22 @@ async def get_portfolio(request: Request) -> Portfolio:
     return _tracker(request).portfolio_service.portfolio
 
 
+@router.get("/portfolio/marks")
+async def portfolio_marks(request: Request) -> list:
+    """Marcação-a-mercado of holdings → HOLD / CONSIDER_SELL / EXIT signals."""
+    tracker = _tracker(request)
+    ctx = tracker.market_context
+    if ctx is None:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=503, detail="Market context not ready")
+    from app.analysis.marktomarket import mark_portfolio
+
+    return mark_portfolio(
+        tracker.portfolio_service.portfolio, ctx, request.app.state.settings
+    )
+
+
 @router.put("/portfolio", response_model=Portfolio)
 async def put_portfolio(request: Request, portfolio: Portfolio) -> Portfolio:
     """Manually override the holdings (recomputed on the next refresh)."""

@@ -13,7 +13,7 @@ All boxes unchecked = not done. See `docs/*-plan.md` for design.
 - [x] "Cheaper than its 30-day norm" signal
 - [x] Spread/price evolution history endpoints
 - [x] Backtesting harness for the cheapness/opportunity signal
-- [ ] Marcação-a-mercado on the mock portfolio → sell / early-exit alerts (needs cost basis)
+- [x] Marcação-a-mercado on the mock portfolio → sell / early-exit alerts
 
 ## Analysis power-ups (fixtures-based; live feeds verified later)
 - [x] "Deploy R$X" allocator (FGC caps + diversification)

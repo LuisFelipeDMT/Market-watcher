@@ -126,20 +126,33 @@ class MockCollector(Collector):
 
     async def fetch_positions(self) -> Portfolio:
         """A demo portfolio with some FGC usage and a concentrated issuer."""
+        today = date.today()
         holdings = [
+            # Prefixado bought at a high rate; rates have since fallen → appreciated.
             Holding(
                 issuer="Banco BTG Pactual",
                 conglomerate=conglomerate_of("Banco BTG Pactual"),
                 product_type=ProductType.CDB,
                 amount=180_000.0,
                 fgc_eligible=True,
+                index_type=IndexType.PRE,
+                entry_rate=15.0,
+                maturity=today + timedelta(days=365 * 3),
+                cost_amount=170_000.0,
+                rating="AAA",
             ),
+            # Issuer flagged with negative news → exit on credit regardless of P&L.
             Holding(
                 issuer="Banco Master",
                 conglomerate=conglomerate_of("Banco Master"),
                 product_type=ProductType.CDB,
                 amount=250_000.0,
                 fgc_eligible=True,
+                index_type=IndexType.PRE,
+                entry_rate=14.0,
+                maturity=today + timedelta(days=365 * 2),
+                cost_amount=250_000.0,
+                rating="BBB",
             ),
             Holding(
                 issuer="Vale S.A.",
@@ -148,6 +161,11 @@ class MockCollector(Collector):
                 amount=30_000.0,
                 fgc_eligible=False,
                 sector=sector_of("Vale S.A."),
+                index_type=IndexType.IPCA,
+                entry_rate=6.8,
+                maturity=today + timedelta(days=365 * 6),
+                cost_amount=30_000.0,
+                rating="AAA",
             ),
         ]
         return Portfolio(holdings=holdings)

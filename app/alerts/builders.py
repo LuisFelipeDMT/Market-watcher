@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from app.alerts.models import Alert, AlertKind, AlertSeverity
 
 if TYPE_CHECKING:  # avoid an import cycle: builders ← trackers ← alerts
+    from app.analysis.marktomarket import HoldingMark
     from app.equities.models import EquityOpportunity
     from app.models import Opportunity
 
@@ -47,6 +48,22 @@ def security_alert(
         title=f"Security: {event}",
         message=detail,
         symbol=None,
+    )
+
+
+def sell_alert(mark: "HoldingMark") -> Alert:
+    """Alert for a held paper that should be sold or exited (marcação a mercado)."""
+    return Alert(
+        id=f"SELL_SIGNAL:{mark.issuer}:{mark.signal}",
+        kind=AlertKind.SELL_SIGNAL,
+        severity=AlertSeverity.ACTIONABLE,
+        title=f"{mark.signal.replace('_', ' ').title()}: {mark.issuer}",
+        message=(
+            f"{mark.product_type} marked {mark.unrealized_pct * 100:+.1f}% vs entry — "
+            + (mark.reasons[0] if mark.reasons else "")
+        ),
+        symbol=mark.issuer,
+        score=abs(mark.unrealized_pct) * 100,
     )
 
 

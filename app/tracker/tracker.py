@@ -63,6 +63,7 @@ class OpportunityTracker:
         self._task: Optional[asyncio.Task] = None
         self._subscribers: set[asyncio.Queue] = set()
         self._known_opportunity_ids: set[str] = set()
+        self._known_sell_signals: set[str] = set()
         self._lock = asyncio.Lock()
 
     # --- lifecycle ---------------------------------------------------------
@@ -164,15 +165,30 @@ class OpportunityTracker:
                     from app.history import metrics_from_bonds
 
                     self._history.record_many(metrics_from_bonds(opportunities))
+
+                # Marcação-a-mercado on holdings → sell / exit signals.
+                if self._alerts is not None:
+                    from app.alerts import sell_alert
+                    from app.analysis.marktomarket import mark_portfolio
+
+                    for mark in mark_portfolio(
+                        self._portfolio.portfolio, self._context, self._settings
+                    ):
+                        if mark.signal == "HOLD":
+                            continue
+                        sig_key = f"{mark.issuer}:{mark.signal}"
+                        if sig_key not in self._known_sell_signals:
+                            self._known_sell_signals.add(sig_key)
+                            alerts_to_send.append(sell_alert(mark))
                 if new_ids:
                     logger.info("New opportunities: %s", ", ".join(new_ids))
                     if self._alerts is not None:
                         flagged = {
                             o.offer.id: o for o in opportunities if o.is_opportunity
                         }
-                        alerts_to_send = [
+                        alerts_to_send.extend(
                             offer_alert(flagged[i]) for i in new_ids if i in flagged
-                        ]
+                        )
             except Exception as exc:  # keep the loop alive on transient errors
                 logger.exception("Refresh failed: %s", exc)
                 self._state = self._state.model_copy(

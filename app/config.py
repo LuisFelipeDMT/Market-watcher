@@ -117,6 +117,8 @@ class Settings(BaseSettings):
 
     # Macro/duration penalty weight (higher => penalize long duration more).
     macro_penalty_weight: float = 1.0
+    # Marcação-a-mercado: unrealized gain (fraction) that flags CONSIDER_SELL.
+    mtm_sell_gain_threshold: float = 0.03
 
     # --- Equities (renda variável: stocks + FIIs) --------------------------
     equity_source: str = "fixtures"  # "fixtures" | "brapi"

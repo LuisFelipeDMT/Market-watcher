@@ -15,6 +15,7 @@ class AlertKind(str, Enum):
     NEW_OPPORTUNITY = "NEW_OPPORTUNITY"  # renda fixa: a new flagged offer
     EQUITY_TRIGGERED = "EQUITY_TRIGGERED"  # renda variável: a name entered the buy zone
     SECURITY = "SECURITY"  # security/ops signal (login failure, new device, etc.)
+    SELL_SIGNAL = "SELL_SIGNAL"  # marcação-a-mercado: consider selling/exiting a holding
 
 
 class AlertSeverity(str, Enum):

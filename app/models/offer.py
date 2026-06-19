@@ -198,6 +198,13 @@ class Holding(BaseModel):
     fgc_eligible: bool = False
     sector: Optional[str] = None
 
+    # --- optional entry details (enable marcação-a-mercado) ----------------
+    index_type: Optional[IndexType] = None
+    entry_rate: Optional[float] = None  # YTM/spread locked at purchase
+    maturity: Optional[date] = None
+    cost_amount: Optional[float] = None  # principal invested at purchase
+    rating: Optional[str] = None
+
 
 class Portfolio(BaseModel):
     """The investor's current holdings."""
